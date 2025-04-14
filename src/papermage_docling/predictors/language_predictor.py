@@ -34,7 +34,9 @@ except ImportError:
         "For better results, install fasttext: pip install fasttext"
     )
 
-from papermage_docling.predictors.rtl_utils import is_rtl
+from papermage_docling.predictors.rtl_utils import (
+    contains_rtl_characters, detect_rtl_text
+)
 
 logger = logging.getLogger(__name__)
 
@@ -401,7 +403,7 @@ class LanguagePredictor:
         
         # For RTL languages with low confidence, verify with character-based detection
         if self.detect_rtl and is_rtl_lang and confidence < 0.7:
-            has_rtl_chars = is_rtl(text)
+            has_rtl_chars = detect_rtl_text(text)
             
             # If character detection doesn't agree with language detection,
             # adjust results based on which has stronger evidence
@@ -459,7 +461,7 @@ class LanguagePredictor:
             }
         
         # For short segments, check if it has RTL characters first
-        if self.detect_rtl and is_rtl(text):
+        if self.detect_rtl and detect_rtl_text(text):
             # For very short segments with RTL characters, default to Arabic
             if len(text.strip()) < 20:
                 return {

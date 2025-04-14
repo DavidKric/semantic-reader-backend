@@ -68,54 +68,111 @@ class DoclingToPaperMageConverter:
         
         current_position = 0
         
-        # Process each page
-        for page_idx, page in enumerate(pdf_doc.pages):
+        # Get page count
+        num_pages = pdf_doc.number_of_pages() if hasattr(pdf_doc, 'number_of_pages') else 0
+        
+        # Iterate through pages
+        for page_idx, page in pdf_doc.iterate_pages():
             page_start = current_position
             page_text = ""
             
-            # Process lines (rows)
-            for line in page.lines:
-                line_start = current_position
-                line_text = line.text
-                
-                # Handle RTL text if needed (this would be handled by rtl_utils in production)
-                # line_text = rtl_utils.reorder_text_if_needed(line_text)
-                
-                # Add to full text
-                page_text += line_text + "\n"
-                current_position += len(line_text) + 1  # +1 for newline
-                
-                # Create row entity
-                row_span = Span(start=line_start, end=current_position - 1)
-                row_box = Box(
-                    x0=line.bbox.x0, 
-                    y0=line.bbox.y0,
-                    x1=line.bbox.x1,
-                    y1=line.bbox.y1,
-                    page=page_idx
-                )
-                rows.append(Entity(spans=[row_span], boxes=[row_box], text=line_text))
-                
-                # Process words in the line
-                line_position = line_start
-                for word in line.words:
-                    word_text = word.text
-                    word_start = line_position
-                    word_end = word_start + len(word_text)
-                    line_position = word_end + 1  # +1 for space
+            # Get page dimensions from page if available
+            page_width = 612  # Default Letter width
+            page_height = 792  # Default Letter height
+            
+            if hasattr(page, 'dimension'):
+                if hasattr(page.dimension, 'width'):
+                    page_width = page.dimension.width
+                if hasattr(page.dimension, 'height'):
+                    page_height = page.dimension.height
+            
+            # Process textline cells - these are our "rows"
+            if hasattr(page, 'textline_cells') and page.textline_cells:
+                for cell in page.textline_cells:
+                    # Skip cells without text
+                    if not hasattr(cell, 'text') or not cell.text:
+                        continue
                     
-                    word_span = Span(start=word_start, end=word_end)
-                    word_box = Box(
-                        x0=word.bbox.x0,
-                        y0=word.bbox.y0,
-                        x1=word.bbox.x1,
-                        y1=word.bbox.y1,
+                    line_text = cell.text
+                    line_start = current_position
+                    
+                    # Add to full text
+                    page_text += line_text + "\n"
+                    current_position += len(line_text) + 1  # +1 for newline
+                    
+                    # Get bounding box information
+                    line_bbox_x0 = 0
+                    line_bbox_y0 = 0
+                    line_bbox_x1 = page_width
+                    line_bbox_y1 = 20  # Default height
+                    
+                    if hasattr(cell, 'rect'):
+                        line_bbox_x0 = cell.rect.x0 if hasattr(cell.rect, 'x0') else 0
+                        line_bbox_y0 = cell.rect.y0 if hasattr(cell.rect, 'y0') else 0
+                        line_bbox_x1 = cell.rect.x1 if hasattr(cell.rect, 'x1') else page_width
+                        line_bbox_y1 = cell.rect.y1 if hasattr(cell.rect, 'y1') else (line_bbox_y0 + 20)
+                    
+                    # Create row entity
+                    row_span = Span(start=line_start, end=current_position - 1)
+                    row_box = Box(
+                        x0=line_bbox_x0, 
+                        y0=line_bbox_y0,
+                        x1=line_bbox_x1,
+                        y1=line_bbox_y1,
                         page=page_idx
                     )
                     
-                    # Add as both word and token for compatibility
-                    words.append(Entity(spans=[word_span], boxes=[word_box], text=word_text))
-                    tokens.append(Entity(spans=[word_span], boxes=[word_box], text=word_text))
+                    # Add metadata for right-to-left text if detected
+                    row_metadata = {}
+                    if hasattr(cell, 'left_to_right') and not cell.left_to_right:
+                        row_metadata["is_rtl"] = True
+                    
+                    rows.append(Entity(spans=[row_span], boxes=[row_box], text=line_text, metadata=row_metadata))
+            
+            # Process word cells
+            if hasattr(page, 'word_cells') and page.word_cells:
+                for cell in page.word_cells:
+                    # Skip cells without text
+                    if not hasattr(cell, 'text') or not cell.text:
+                        continue
+                    
+                    word_text = cell.text
+                    
+                    # Find position of this word in the full text
+                    word_pos = page_text.find(word_text)
+                    if word_pos != -1:
+                        word_start = page_start + word_pos
+                        word_end = word_start + len(word_text) - 1
+                        
+                        # Get bounding box information
+                        word_bbox_x0 = 0
+                        word_bbox_y0 = 0
+                        word_bbox_x1 = 100  # Default width
+                        word_bbox_y1 = 20   # Default height
+                        
+                        if hasattr(cell, 'rect'):
+                            word_bbox_x0 = cell.rect.x0 if hasattr(cell.rect, 'x0') else 0
+                            word_bbox_y0 = cell.rect.y0 if hasattr(cell.rect, 'y0') else 0
+                            word_bbox_x1 = cell.rect.x1 if hasattr(cell.rect, 'x1') else word_bbox_x0 + 100
+                            word_bbox_y1 = cell.rect.y1 if hasattr(cell.rect, 'y1') else word_bbox_y0 + 20
+                        
+                        word_span = Span(start=word_start, end=word_end)
+                        word_box = Box(
+                            x0=word_bbox_x0,
+                            y0=word_bbox_y0,
+                            x1=word_bbox_x1,
+                            y1=word_bbox_y1,
+                            page=page_idx
+                        )
+                        
+                        # Add metadata for right-to-left text if detected
+                        word_metadata = {}
+                        if hasattr(cell, 'left_to_right') and not cell.left_to_right:
+                            word_metadata["is_rtl"] = True
+                        
+                        # Add as both word and token for compatibility
+                        words.append(Entity(spans=[word_span], boxes=[word_box], text=word_text, metadata=word_metadata))
+                        tokens.append(Entity(spans=[word_span], boxes=[word_box], text=word_text, metadata=word_metadata))
             
             # Create page entity
             page_end = current_position - 1
@@ -123,8 +180,8 @@ class DoclingToPaperMageConverter:
             page_box = Box(
                 x0=0,
                 y0=0,
-                x1=page.width,
-                y1=page.height,
+                x1=page_width,
+                y1=page_height,
                 page=page_idx
             )
             pages.append(Entity(spans=[page_span], boxes=[page_box]))
@@ -141,12 +198,17 @@ class DoclingToPaperMageConverter:
         doc.add_entity_layer("tokens", tokens)
         doc.add_entity_layer("words", words)
         
-        # Add metadata
+        # Add metadata, including RTL detection information
         doc.metadata = {
             "filename": pdf_doc.filename if hasattr(pdf_doc, "filename") else "",
-            "num_pages": len(pdf_doc.pages),
+            "num_pages": num_pages,
             "version": "0.1.0"
         }
+        
+        # Copy RTL detection metadata
+        if hasattr(pdf_doc, 'metadata'):
+            for key, value in pdf_doc.metadata.items():
+                doc.metadata[key] = value
         
         return doc
     
@@ -572,4 +634,204 @@ class DoclingToPaperMageConverter:
             return True
         except Exception as e:
             logger.error(f"PaperMage format validation failed: {e}")
-            raise ValueError(f"PaperMage format validation failed: {e}") 
+            raise ValueError(f"PaperMage format validation failed: {e}")
+    
+    @staticmethod
+    def convert_v2_document(docling_doc: Dict) -> Document:
+        """
+        Convert a Docling V2 document dictionary to a PaperMage-compatible Document.
+        
+        Args:
+            docling_doc: A dictionary containing Docling V2 parser output
+            
+        Returns:
+            A PaperMage-compatible Document instance
+        """
+        logger.info("Converting Docling V2 document to PaperMage format")
+        
+        # Create a new Document
+        doc = Document()
+        
+        # Start with empty symbols
+        full_text = ""
+        
+        # Process pages
+        pages = []
+        tokens = []
+        words = []
+        rows = []
+        
+        current_position = 0
+        
+        # Get metadata
+        metadata = docling_doc.get("metadata", {})
+        num_pages = metadata.get("num_pages", 0)
+        
+        # Process each page
+        for page_info in docling_doc.get("pages", []):
+            page_idx = page_info.get("page_number", 1) - 1  # Convert to 0-indexed
+            page_start = current_position
+            page_text = ""
+            
+            # Default page dimensions
+            page_width = 612  # Default Letter width
+            page_height = 792  # Default Letter height
+            
+            # Extract page data
+            page_data = page_info.get("data", {})
+            
+            # Process pages from data
+            page_entries = page_data.get("pages", [])
+            if page_entries:
+                page = page_entries[0]  # Get first page entry
+                
+                # Get sanitized cells data
+                if "sanitized" in page and "cells" in page["sanitized"]:
+                    cells = page["sanitized"]["cells"]
+                    header = cells.get("header", [])
+                    data = cells.get("data", [])
+                    
+                    # Find indices for important columns
+                    text_idx = header.index("text") if "text" in header else -1
+                    rtl_idx = header.index("left_to_right") if "left_to_right" in header else -1
+                    
+                    # Process cells as rows
+                    row_number = 0
+                    for cell in data:
+                        if text_idx >= 0 and text_idx < len(cell) and cell[text_idx]:
+                            line_text = cell[text_idx]
+                            is_rtl = False
+                            
+                            # Check if RTL
+                            if rtl_idx >= 0 and rtl_idx < len(cell):
+                                is_rtl = cell[rtl_idx] == 0  # 0 means RTL in Docling
+                            
+                            line_start = current_position
+                            
+                            # Add to full text
+                            page_text += line_text + "\n"
+                            current_position += len(line_text) + 1  # +1 for newline
+                            
+                            # Create row span
+                            row_span = Span(start=line_start, end=current_position - 1)
+                            
+                            # Create row box (default values since cell coordinates aren't provided)
+                            row_box = Box(
+                                x0=0,
+                                y0=row_number * 15,  # Approximate vertical position
+                                x1=page_width,
+                                y1=(row_number + 1) * 15,
+                                page=page_idx
+                            )
+                            
+                            # Add row metadata
+                            row_metadata = {}
+                            if is_rtl:
+                                row_metadata["is_rtl"] = True
+                            
+                            # Add row entity
+                            rows.append(Entity(
+                                spans=[row_span],
+                                boxes=[row_box],
+                                text=line_text,
+                                metadata=row_metadata
+                            ))
+                            
+                            # Extract words from the line
+                            word_offset = 0
+                            for word in line_text.split():
+                                if not word:
+                                    continue
+                                    
+                                # Find exact position in the line
+                                while line_text[word_offset:].strip().find(word) != 0:
+                                    word_offset += 1
+                                    if word_offset >= len(line_text):
+                                        break
+                                
+                                if word_offset >= len(line_text):
+                                    continue
+                                    
+                                word_start = line_start + word_offset
+                                word_end = word_start + len(word)
+                                word_offset = word_end
+                                
+                                # Create word span
+                                word_span = Span(start=word_start, end=word_end - 1)
+                                
+                                # Create word box (approximate position)
+                                word_box = Box(
+                                    x0=0,  # We don't have exact x-coordinates
+                                    y0=row_number * 15,
+                                    x1=100,
+                                    y1=(row_number + 1) * 15,
+                                    page=page_idx
+                                )
+                                
+                                # Add word metadata
+                                word_metadata = {}
+                                if is_rtl:
+                                    word_metadata["is_rtl"] = True
+                                
+                                # Add as both word and token
+                                words.append(Entity(
+                                    spans=[word_span],
+                                    boxes=[word_box],
+                                    text=word,
+                                    metadata=word_metadata
+                                ))
+                                
+                                tokens.append(Entity(
+                                    spans=[word_span],
+                                    boxes=[word_box],
+                                    text=word,
+                                    metadata=word_metadata
+                                ))
+                            
+                            row_number += 1
+            
+            # Create page entity
+            page_end = current_position - 1
+            page_span = Span(start=page_start, end=page_end)
+            page_box = Box(
+                x0=0,
+                y0=0,
+                x1=page_width,
+                y1=page_height,
+                page=page_idx
+            )
+            pages.append(Entity(spans=[page_span], boxes=[page_box]))
+            
+            # Add page text to full document text
+            full_text += page_text
+        
+        # Set full document text
+        doc.symbols = full_text
+        
+        # Add all entity layers
+        doc.add_entity_layer("pages", pages)
+        doc.add_entity_layer("rows", rows)
+        doc.add_entity_layer("tokens", tokens)
+        doc.add_entity_layer("words", words)
+        
+        # Add metadata
+        doc.metadata = {
+            "num_pages": num_pages,
+            "version": "0.1.0",
+            "parser": "docling_v2"
+        }
+        
+        # Copy RTL metadata
+        if metadata.get("has_rtl"):
+            doc.metadata["has_rtl"] = True
+            doc.metadata["rtl_lines_count"] = metadata.get("rtl_lines_count", 0)
+        
+        # Copy language metadata
+        if "language" in metadata:
+            doc.metadata["language"] = metadata["language"]
+        if "language_name" in metadata:
+            doc.metadata["language_name"] = metadata["language_name"]
+        if "is_rtl_language" in metadata:
+            doc.metadata["is_rtl_language"] = metadata["is_rtl_language"]
+        
+        return doc 

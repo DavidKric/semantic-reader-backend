@@ -1,1 +1,0 @@
-scripts/dev/run_server.sh

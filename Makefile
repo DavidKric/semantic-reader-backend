@@ -70,4 +70,57 @@ help: ## Display this help message
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort 
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
+
+.PHONY: install dev run test lint format clean help migrate upgrade
+
+PYTHON = python
+UV = uv
+APP = app
+
+help:
+	@echo "Available commands:"
+	@echo "  install         Install production dependencies"
+	@echo "  dev             Install development dependencies"
+	@echo "  run             Run the application"
+	@echo "  test            Run tests"
+	@echo "  lint            Run linting checks"
+	@echo "  format          Format code"
+	@echo "  clean           Clean build artifacts"
+	@echo "  migrate         Generate a new database migration"
+	@echo "  upgrade         Upgrade database to latest migration"
+	@echo "  help            Show this help message"
+
+install:
+	$(UV) pip install .
+
+dev:
+	$(UV) pip install -e ".[dev]"
+
+run:
+	$(PYTHON) -m $(APP).main
+
+test:
+	pytest -xvs tests/
+
+lint:
+	ruff check $(APP)/ tests/
+	mypy $(APP)/
+
+format:
+	black $(APP)/ tests/
+	ruff check --fix $(APP)/ tests/
+
+clean:
+	rm -rf build/
+	rm -rf dist/
+	rm -rf *.egg-info
+	find . -type d -name __pycache__ -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
+
+# Database migrations
+migrate:
+	alembic revision --autogenerate -m "$(message)"
+
+upgrade:
+	alembic upgrade head 

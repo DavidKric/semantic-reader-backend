@@ -15,12 +15,12 @@ import os
 try:
     from docling_core.types import DoclingDocument
     from docling_parse.pdf_parser import PdfDocument
-    from docling_core.types.doc import Page, TextCellUnit
-    from docling_core.pipeline import Pipeline
+    from docling_core.types.doc.page import SegmentedPage as Page
+    from docling.pipeline.simple_pipeline import SimplePipeline as Pipeline
     # Import docling models for structure analysis if available
     try:
-        from docling.models.layout import LayoutAnalyzer
-        from docling.models.structure import StructureAnalyzer
+        from docling.models.layout_model import LayoutModel
+        from docling.models.readingorder_model import ReadingOrderModel
         HAS_DOCLING_MODELS = True
     except ImportError:
         logging.warning("Docling models not found. Using basic structure analysis.")
@@ -112,17 +112,17 @@ class StructurePredictor:
         if HAS_DOCLING_MODELS:
             try:
                 # Initialize docling's native layout analyzer
-                self.layout_analyzer = LayoutAnalyzer(
+                self.layout_analyzer = LayoutModel(
                     confidence_threshold=layout_confidence_threshold,
                     model_path=custom_models_path
                 )
-                logger.info("Successfully initialized docling LayoutAnalyzer")
+                logger.info("Successfully initialized docling LayoutModel")
                 
                 # Initialize docling's native structure analyzer for hierarchical structure
-                self.structure_analyzer = StructureAnalyzer(
+                self.structure_analyzer = ReadingOrderModel(
                     enable_heading_detection=enable_heading_detection
                 )
-                logger.info("Successfully initialized docling StructureAnalyzer")
+                logger.info("Successfully initialized docling ReadingOrderModel")
             except Exception as e:
                 logger.error(f"Failed to initialize docling models: {e}")
         else:

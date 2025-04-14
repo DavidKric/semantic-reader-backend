@@ -15,7 +15,6 @@ from datetime import datetime
 try:
     # Import Docling document structures for PDF rendering
     from docling_parse.pdf_parser import PdfDocument
-    from docling_core.types.doc import Page
     import fitz  # PyMuPDF
     HAS_DOCLING_PARSE = True
 except ImportError:

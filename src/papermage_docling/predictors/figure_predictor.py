@@ -15,9 +15,9 @@ import base64
 
 # Import Docling document structures
 try:
-    from docling_core.types import DoclingDocument
     from docling_parse.pdf_parser import PdfDocument
-    from docling_core.types.doc import Page, ImageItem
+    from docling_core.types.doc.page import SegmentedPage as Page
+    from docling_core.types.doc import ImageRef
     # Import figure models if available
     try:
         from docling.models.document_picture_classifier import DocumentPictureClassifier
@@ -28,8 +28,6 @@ try:
 except ImportError:
     logging.warning("Docling dependencies not found. Figure prediction functionality will be limited.")
     # Define stub classes for type hints
-    class DoclingDocument:
-        pass
     
     class PdfDocument:
         pass
@@ -37,7 +35,7 @@ except ImportError:
     class Page:
         pass
     
-    class ImageItem:
+    class ImageRef:
         pass
     
     HAS_FIGURE_MODELS = False
@@ -556,15 +554,15 @@ class FigurePredictor:
     
     def _create_figure_from_image(
         self, 
-        image: ImageItem, 
+        image: ImageRef, 
         page_idx: int, 
         img_idx: int
     ) -> Optional[FigureItem]:
         """
-        Create a FigureItem from a Docling ImageItem.
+        Create a FigureItem from a Docling ImageRef.
         
         Args:
-            image: Docling ImageItem
+            image: Docling ImageRed
             page_idx: Page index
             img_idx: Image index
             

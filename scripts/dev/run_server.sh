@@ -64,4 +64,4 @@ echo -e "${YELLOW}Running with UV to ensure proper dependency management...${NC}
 # 1. Run app.py directly with uvicorn through UV
 # 2. Run app module with UV run
 
-uv run uvicorn app:app --reload --host $HOST --port $PORT 
+uv run uvicorn app.main:app --reload --host $HOST --port $PORT 

@@ -36,6 +36,11 @@
       "description": "Document with complex tables and figures"
     },
     {
+      "name": "rtl_doc",
+      "path": "rtl/36718-10-20.pdf",
+      "description": "RTL language document with right-to-left text"
+    },
+    {
       "name": "arabic_text",
       "path": "rtl/arabic_text.pdf",
       "description": "Arabic language document with RTL text"

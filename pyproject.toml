@@ -21,23 +21,37 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "docling-core",
-    "docling",
-    "docling-parse",
+    # Core dependencies
     "fastapi>=0.100.0",
     "uvicorn>=0.22.0",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
+    # Database
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.11.0",
+    # API utilities
     "python-multipart",
+    "python-jose[cryptography]",
+    "passlib[bcrypt]",
+    # Document processing
+    "docling-core",
+    "docling",
+    "docling-parse",
     "PyMuPDF>=1.21.0",
     "gradio>=3.50.0",
-    "slowapi>=0.1.7",
-    "uuid>=1.30",
     "fasttext>=0.9.2",
+    # Rate limiting
+    "slowapi>=0.1.7",
+    "langdetect>=1.0.9",
+    "python-bidi>=0.6.6",
+    "arabic-reshaper>=3.0.0",
+    "docling-ibm-models>=3.4.1",
+    "pytest-html>=4.1.1",
 ]
 
 [project.scripts]
 papermage-converter = "papermage_docling.cli.converter_cli:main"
+semantic-reader = "app.main:main"
 
 [project.optional-dependencies]
 dev = [
@@ -48,12 +62,14 @@ dev = [
     "ruff>=0.0.270",
     "black>=23.1.0",
     "mypy>=1.0.0",
+    "httpx>=0.24.0",  # For API testing
 ]
 test = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "pytest-html>=3.2.0",
     "pytest-benchmark>=4.0.0",
+    "httpx>=0.24.0",
 ]
 lint = [
     "ruff>=0.0.270",
@@ -71,12 +87,15 @@ all = [
 [project.urls]
 "Homepage" = "https://github.com/yourusername/papermage-docling"
 "Bug Tracker" = "https://github.com/yourusername/papermage-docling/issues"
+"Documentation" = "https://github.com/yourusername/papermage-docling/docs"
 
 [tool.ruff]
 line-length = 88
 target-version = "py311"
 select = ["E", "F", "B", "I"]
 ignore = []
+# Include app package in ruff checks
+src = ["app", "src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -86,7 +105,10 @@ markers = [
     "complex: tests using complex documents with multiple columns, tables, etc.",
     "rtl: tests for right-to-left text handling",
     "large: tests for large documents (performance)",
-    "performance: tests measuring performance metrics"
+    "performance: tests measuring performance metrics",
+    "api: tests for API endpoints",
+    "unit: unit tests for specific components",
+    "integration: integration tests",
 ]
 
 [tool.mypy]
@@ -95,7 +117,14 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+# Include app package in mypy checks
+packages = ["app", "src"]
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+include = '\.pyi?$'
 
 [tool.setuptools]
-packages = ["papermage_docling"]
-package-dir = {"" = "src"}
+packages = ["papermage_docling", "app"]
+package-dir = {"" = "src", "app" = "app"}

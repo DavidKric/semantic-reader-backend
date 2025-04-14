@@ -1,10 +1,11 @@
 """
-PaperMage-Docling API service application package.
+Semantic Reader Backend - FastAPI Application
 
-This package provides a FastAPI service for document processing
-using the PaperMage-Docling implementation.
+This package contains the FastAPI application for the Semantic Reader Backend,
+structured according to modern FastAPI best practices with proper separation of concerns.
 """
 
-from app.config import settings
+# Import version for direct access
+from app.core.config import settings
 
 __version__ = settings.APP_VERSION 

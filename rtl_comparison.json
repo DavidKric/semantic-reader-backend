@@ -1,0 +1,155 @@
+{
+  "comparison_time": "2025-04-15 02:07:46",
+  "rtl_detection_enabled": true,
+  "language_detection_enabled": true,
+  "pdf_count": 2,
+  "max_pages_processed": -1,
+  "results": [
+    {
+      "filename": "basic_text.pdf",
+      "path": "tests/test_data/documents/simple/basic_text.pdf",
+      "processing_time_seconds": 0.48914194107055664,
+      "total_pages": 1,
+      "total_text_length": 644,
+      "metadata": {
+        "filename": "",
+        "num_pages": 1,
+        "version": "0.1.0",
+        "language": "en",
+        "language_name": "English",
+        "language_confidence": 0.9328148365020752,
+        "is_rtl_language": false
+      },
+      "language_info": {
+        "language": "en",
+        "language_name": "English",
+        "confidence": 0.9328148365020752,
+        "is_rtl_language": false
+      },
+      "rtl_info": {
+        "has_rtl": false,
+        "rtl_lines_count": 0,
+        "rtl_pages": []
+      },
+      "page_summary": [
+        {
+          "page_number": 1,
+          "total_rows": 0,
+          "rtl_rows": 0,
+          "sample_text": ""
+        }
+      ]
+    },
+    {
+      "filename": "36718-10-20.pdf",
+      "path": "tests/test_data/documents/rtl/36718-10-20.pdf",
+      "processing_time_seconds": 2.3204190731048584,
+      "total_pages": 4,
+      "total_text_length": 7431,
+      "metadata": {
+        "filename": "",
+        "num_pages": 4,
+        "version": "0.1.0",
+        "language": "he",
+        "language_name": "Hebrew",
+        "language_confidence": 0.999656617641449,
+        "is_rtl_language": true,
+        "rtl_processing_required": true,
+        "rtl_pages": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "has_rtl": true,
+        "has_rtl_content": true,
+        "rtl_lines_count": 188
+      },
+      "language_info": {
+        "language": "he",
+        "language_name": "Hebrew",
+        "confidence": 0.999656617641449,
+        "is_rtl_language": true
+      },
+      "rtl_info": {
+        "has_rtl": true,
+        "rtl_lines_count": 188,
+        "rtl_pages": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "page_summary": [
+        {
+          "page_number": 1,
+          "total_rows": 0,
+          "rtl_rows": 0,
+          "sample_text": ""
+        },
+        {
+          "page_number": 2,
+          "total_rows": 153,
+          "rtl_rows": 0,
+          "sample_text": " "
+        },
+        {
+          "page_number": 3,
+          "total_rows": 127,
+          "rtl_rows": 0,
+          "sample_text": " "
+        },
+        {
+          "page_number": 4,
+          "total_rows": 99,
+          "rtl_rows": 0,
+          "sample_text": " "
+        }
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "file1": "basic_text.pdf",
+      "file2": "36718-10-20.pdf",
+      "differences": {
+        "same_language": false,
+        "language_info": {
+          "file1": {
+            "language": "en",
+            "language_name": "English",
+            "confidence": 0.9328148365020752,
+            "is_rtl_language": false
+          },
+          "file2": {
+            "language": "he",
+            "language_name": "Hebrew",
+            "confidence": 0.999656617641449,
+            "is_rtl_language": true
+          }
+        },
+        "same_rtl_status": false,
+        "rtl_info": {
+          "file1": {
+            "has_rtl": false,
+            "rtl_lines_count": 0,
+            "rtl_pages": []
+          },
+          "file2": {
+            "has_rtl": true,
+            "rtl_lines_count": 188,
+            "rtl_pages": [
+              1,
+              2,
+              3,
+              4
+            ]
+          }
+        },
+        "page_count_difference": -3,
+        "processing_time_ratio": 0.21079896590233405
+      }
+    }
+  ]
+}

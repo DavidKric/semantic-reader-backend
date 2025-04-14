@@ -118,7 +118,12 @@ def detect_rtl_text(text: str, threshold: float = 0.3) -> bool:
         
     Returns:
         True if the text should be treated as RTL, False otherwise
+        
+    Raises:
+        TypeError: If text is None
     """
+    if text is None:
+        raise TypeError("Text cannot be None")
     return estimate_rtl_ratio(text) >= threshold
 
 def get_rtl_direction_marker(is_rtl: bool) -> str:
@@ -297,15 +302,15 @@ def is_rtl(text: str) -> bool:
 
 def get_text_direction(text: str) -> str:
     """
-    Determine the primary direction of the text.
+    Get the primary direction of text ('rtl' or 'ltr').
     
     Args:
         text: The text to analyze
         
     Returns:
-        'rtl' if the text is primarily right-to-left, 'ltr' otherwise
+        'rtl' if the text is primarily right-to-left, otherwise 'ltr'
     """
-    return 'rtl' if is_rtl(text) else 'ltr'
+    return 'rtl' if detect_rtl_text(text) else 'ltr'
 
 def get_rtl_runs(text: str) -> List[Tuple[bool, str]]:
     """
@@ -362,7 +367,7 @@ def reorder_text(text: str) -> str:
     Returns:
         The reordered text
     """
-    if not text or not is_rtl(text):
+    if not text or not detect_rtl_text(text):
         return text
     
     # If bidi support is available, use the libraries
@@ -411,7 +416,7 @@ def reorder_words(words: List[str], is_rtl: Optional[bool] = None) -> List[str]:
     # If RTL not specified, detect from the concatenated words
     if is_rtl is None:
         text = " ".join(words)
-        is_rtl = is_rtl(text)
+        is_rtl = detect_rtl_text(text)
     
     if is_rtl:
         # For RTL text, reverse the word order
@@ -461,7 +466,7 @@ def process_rtl_paragraph(text: str) -> str:
         return text
     
     # Skip processing if not RTL
-    if not is_rtl(text):
+    if not detect_rtl_text(text):
         return text
     
     # Normalize the text

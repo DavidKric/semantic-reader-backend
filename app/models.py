@@ -60,7 +60,7 @@ class ConversionOptions(BaseModel):
     
     class Config:
         """Configuration for model examples."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "perform_ocr": True,
                 "ocr_language": "eng",
@@ -89,7 +89,7 @@ class ConvertURLRequest(BaseModel):
     
     class Config:
         """Configuration for model examples."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "urls": ["https://example.com/document.pdf"],
                 "options": {
@@ -140,7 +140,7 @@ class ConvertResponse(BaseModel):
     
     class Config:
         """Configuration for model examples."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "job_id": "550e8400-e29b-41d4-a716-446655440000",
                 "status": "completed",
@@ -195,7 +195,7 @@ class DetailedErrorResponse(BaseModel):
     
     class Config:
         """Configuration for model examples."""
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "error_code": "PARSING_ERROR",
                 "message": "Failed to parse PDF document",

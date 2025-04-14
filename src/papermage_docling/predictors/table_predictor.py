@@ -17,7 +17,7 @@ import numpy as np
 try:
     from docling_core.types import DoclingDocument
     from docling_parse.pdf_parser import PdfDocument
-    from docling_core.types.doc import Page, TextCellUnit
+    from docling_core.types.doc.page import SegmentedPage as Page
     # Import table models if available
     try:
         from docling.models.table_structure_model import TableStructureModel

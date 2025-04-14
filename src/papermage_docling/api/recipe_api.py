@@ -35,7 +35,7 @@ class RecipeOptions(BaseModel):
     detect_sections: bool = True
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "enable_ocr": True,
                 "ocr_language": "eng",
@@ -51,7 +51,7 @@ class RecipeResponse(BaseModel):
     result: Optional[Dict[str, Any]] = None
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "job_id": "550e8400-e29b-41d4-a716-446655440000",
                 "status": "completed",
