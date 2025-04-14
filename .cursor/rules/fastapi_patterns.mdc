@@ -1,0 +1,472 @@
+---
+description: FastAPI-specific patterns and best practices for Semantic Reader backend
+globs: "**/api_service.py,**/*router.py"
+alwaysApply: false
+---
+
+# FastAPI Patterns and Best Practices
+
+## API Structure
+
+- **API Organization**
+  - Keep API service logic in a single file for this project
+  - Use function-based view handlers for simplicity
+  ```python
+  # ✅ DO: Organize API endpoints clearly
+  from fastapi import FastAPI, File, UploadFile, HTTPException
+  from fastapi.middleware.cors import CORSMiddleware
+  
+  app = FastAPI(
+      title="Semantic Reader Backend",
+      description="API for parsing PDF documents using Docling",
+      version="0.1.0",
+  )
+  
+  # Add middleware
+  app.add_middleware(
+      CORSMiddleware,
+      allow_origins=["*"],  # Update based on your requirements
+      allow_credentials=True,
+      allow_methods=["*"],
+      allow_headers=["*"],
+  )
+  
+  @app.post("/parse")
+  async def parse_document(file: UploadFile = File(...)):
+      """Parse a PDF document and return structured data."""
+      # Implementation
+  ```
+
+## Request Handling
+
+- **File Upload Handling**
+  - Use FastAPI's `UploadFile` for PDF uploads
+  - Validate content type and file size
+  ```python
+  # ✅ DO: Properly handle file uploads
+  from fastapi import UploadFile, File, HTTPException
+  import os
+  from tempfile import NamedTemporaryFile
+  
+  @app.post("/parse")
+  async def parse_document(file: UploadFile = File(...)):
+      # Validate file type
+      if file.content_type != "application/pdf":
+          raise HTTPException(
+              status_code=400,
+              detail="Only PDF files are supported"
+          )
+      
+      # Read file content
+      contents = await file.read()
+      
+      # Check file size
+      if len(contents) > settings.max_file_size:
+          raise HTTPException(
+              status_code=413,
+              detail=f"File size exceeds the {settings.max_file_size} bytes limit"
+          )
+      
+      # Save to temporary file for processing
+      with NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+          temp_file.write(contents)
+          temp_path = temp_file.name
+      
+      try:
+          # Process document
+          result = process_document(temp_path)
+          return result
+      finally:
+          # Clean up temporary file
+          os.unlink(temp_path)
+  ```
+
+## Response Models
+
+- **Structured Responses**
+  - Use Pydantic models for response validation
+  - Provide consistent response structure
+  ```python
+  # ✅ DO: Use structured response models
+  from pydantic import BaseModel, Field
+  from typing import Dict, Any, List, Optional
+  
+  class HealthResponse(BaseModel):
+      status: str = "ok"
+      version: str
+  
+  class ErrorResponse(BaseModel):
+      detail: str
+      status_code: int
+  
+  class ParseResponse(BaseModel):
+      symbols: str
+      entities: Dict[str, List[Dict[str, Any]]]
+      metadata: Dict[str, Any]
+  
+  @app.get("/health", response_model=HealthResponse)
+  async def health_check():
+      """Check API health status."""
+      return {
+          "status": "ok",
+          "version": settings.version,
+      }
+  
+  @app.post("/parse", response_model=ParseResponse)
+  async def parse_document(file: UploadFile = File(...)):
+      """Parse a PDF document and return structured data."""
+      # Implementation
+  ```
+
+## Error Handling
+
+- **Consistent Error Responses**
+  - Use HTTP exceptions with appropriate status codes
+  - Provide detailed error messages
+  ```python
+  # ✅ DO: Implement proper error handling
+  from fastapi import HTTPException
+  from starlette.requests import Request
+  from starlette.responses import JSONResponse
+  
+  class DocumentParsingError(Exception):
+      """Exception raised when document parsing fails."""
+      def __init__(self, detail: str):
+          self.detail = detail
+          super().__init__(self.detail)
+  
+  @app.exception_handler(DocumentParsingError)
+  async def document_parsing_exception_handler(
+      request: Request, 
+      exc: DocumentParsingError
+  ):
+      return JSONResponse(
+          status_code=422,
+          content={"detail": exc.detail},
+      )
+  
+  @app.post("/parse")
+  async def parse_document(file: UploadFile = File(...)):
+      try:
+          # Parsing logic
+          pass
+      except ValueError as e:
+          raise HTTPException(status_code=400, detail=str(e))
+      except DocumentParsingError as e:
+          raise HTTPException(status_code=422, detail=str(e))
+      except Exception as e:
+          logger.exception("Unexpected error during parsing")
+          raise HTTPException(
+              status_code=500, 
+              detail="An unexpected error occurred during document parsing"
+          )
+  ```
+
+## Security
+
+- **Secure File Handling**
+  - Validate input files carefully
+  - Limit file size and processing duration
+  ```python
+  # ✅ DO: Implement secure file handling
+  import magic
+  import asyncio
+  from fastapi import HTTPException
+  
+  async def validate_pdf(file_content: bytes) -> bool:
+      """Validate that the content is a genuine PDF file."""
+      # Check with libmagic for accurate file type detection
+      mime = magic.Magic(mime=True)
+      file_type = mime.from_buffer(file_content)
+      
+      if file_type != "application/pdf":
+          return False
+          
+      # Additional PDF validation checks could go here
+      return True
+  
+  @app.post("/parse")
+  async def parse_document(file: UploadFile = File(...)):
+      contents = await file.read()
+      
+      # Validate file is a real PDF
+      if not await validate_pdf(contents):
+          raise HTTPException(
+              status_code=400,
+              detail="Invalid PDF file"
+          )
+      
+      # Limit processing time
+      try:
+          result = await asyncio.wait_for(
+              process_document_async(contents),
+              timeout=settings.processing_timeout
+          )
+          return result
+      except asyncio.TimeoutError:
+          raise HTTPException(
+              status_code=408,
+              detail="Document processing timed out"
+          )
+  ```
+
+## Rate Limiting
+
+- **Request Rate Limiting**
+  - Implement rate limiting for production
+  - Use appropriate algorithm (e.g., token bucket)
+  ```python
+  # ✅ DO: Implement rate limiting
+  from fastapi import FastAPI, Request, Response
+  import time
+  from typing import Dict, List, Tuple
+  
+  # Simple in-memory rate limiter (use Redis for production)
+  class RateLimiter:
+      def __init__(self, requests_per_minute: int = 60):
+          self.requests_per_minute = requests_per_minute
+          self.window_size = 60  # 1 minute in seconds
+          self.clients: Dict[str, List[float]] = {}
+          
+      def is_rate_limited(self, client_id: str) -> Tuple[bool, int]:
+          """Check if client has exceeded rate limit."""
+          now = time.time()
+          
+          if client_id not in self.clients:
+              self.clients[client_id] = []
+              
+          # Remove timestamps older than the window
+          self.clients[client_id] = [
+              ts for ts in self.clients[client_id] 
+              if now - ts < self.window_size
+          ]
+          
+          # Check if client exceeded limit
+          if len(self.clients[client_id]) >= self.requests_per_minute:
+              oldest = self.clients[client_id][0]
+              reset_time = int(oldest + self.window_size - now)
+              return True, reset_time
+              
+          # Add current request timestamp
+          self.clients[client_id].append(now)
+          return False, 0
+  
+  rate_limiter = RateLimiter()
+  
+  @app.middleware("http")
+  async def rate_limit_middleware(request: Request, call_next):
+      client_id = request.client.host
+      
+      # Get rate limit status
+      is_limited, reset_time = rate_limiter.is_rate_limited(client_id)
+      
+      if is_limited:
+          headers = {
+              "X-RateLimit-Limit": str(rate_limiter.requests_per_minute),
+              "X-RateLimit-Reset": str(reset_time),
+          }
+          return Response(
+              content="Rate limit exceeded", 
+              status_code=429,
+              headers=headers
+          )
+          
+      # Process the request
+      response = await call_next(request)
+      return response
+  ```
+
+## Documentation
+
+- **API Documentation**
+  - Configure Swagger UI docs with examples
+  - Add detailed operation descriptions
+  ```python
+  # ✅ DO: Configure API documentation
+  from fastapi import FastAPI
+  from fastapi.openapi.utils import get_openapi
+  
+  app = FastAPI(
+      title="Semantic Reader Backend",
+      description="API for parsing PDF documents using Docling",
+      version="0.1.0",
+  )
+  
+  def custom_openapi():
+      if app.openapi_schema:
+          return app.openapi_schema
+          
+      openapi_schema = get_openapi(
+          title="Semantic Reader Backend API",
+          version="0.1.0",
+          description="API for parsing and analyzing PDF documents with Docling",
+          routes=app.routes,
+      )
+      
+      # Add examples
+      openapi_schema["paths"]["/parse"]["post"]["requestBody"]["content"]["multipart/form-data"]["examples"] = {
+          "Simple PDF": {
+              "summary": "A simple PDF document",
+              "value": {
+                  "file": "sample.pdf"
+              }
+          }
+      }
+      
+      app.openapi_schema = openapi_schema
+      return app.openapi_schema
+      
+  app.openapi = custom_openapi
+  ```
+
+## Performance
+
+- **Async Processing**
+  - Use asynchronous handlers for I/O-bound operations
+  - Implement background tasks for long-running processes
+  ```python
+  # ✅ DO: Use asynchronous handlers
+  from fastapi import BackgroundTasks
+  import aiofiles
+  import asyncio
+  
+  async def process_document_async(content: bytes) -> Dict[str, Any]:
+      """Process document asynchronously."""
+      # Use asyncio.to_thread for CPU-bound operations
+      result = await asyncio.to_thread(cpu_bound_parsing_function, content)
+      return result
+      
+  def send_notification(email: str, document_id: str):
+      """Background task to send notification when processing is complete."""
+      # Send email notification
+      pass
+      
+  @app.post("/parse-async")
+  async def parse_document_async(
+      file: UploadFile = File(...),
+      background_tasks: BackgroundTasks,
+      email: Optional[str] = None
+  ):
+      """Parse document asynchronously with notification when complete."""
+      contents = await file.read()
+      
+      # Save to temporary file asynchronously
+      async with aiofiles.open("temp.pdf", "wb") as temp_file:
+          await temp_file.write(contents)
+          
+      # Generate document ID
+      document_id = str(uuid.uuid4())
+      
+      # Add background task
+      if email:
+          background_tasks.add_task(send_notification, email, document_id)
+          
+      # Start processing
+      return {
+          "document_id": document_id,
+          "status": "processing",
+          "message": "Document processing started"
+      }
+  ```
+
+## Logging
+
+- **Structured Logging**
+  - Use structured logging with request context
+  - Include important metrics for monitoring
+  ```python
+  # ✅ DO: Implement structured logging
+  import logging
+  import time
+  import uuid
+  from fastapi import Request, Response
+  
+  logger = logging.getLogger("api")
+  
+  @app.middleware("http")
+  async def logging_middleware(request: Request, call_next):
+      request_id = str(uuid.uuid4())
+      request.state.request_id = request_id
+      
+      start_time = time.time()
+      client_host = request.client.host
+      
+      logger.info(
+          f"Request started",
+          extra={
+              "request_id": request_id,
+              "client_ip": client_host,
+              "method": request.method,
+              "url": str(request.url),
+          }
+      )
+      
+      response = await call_next(request)
+      
+      process_time = time.time() - start_time
+      
+      logger.info(
+          f"Request completed",
+          extra={
+              "request_id": request_id,
+              "client_ip": client_host,
+              "method": request.method,
+              "url": str(request.url),
+              "status_code": response.status_code,
+              "process_time": process_time,
+          }
+      )
+      
+      response.headers["X-Request-ID"] = request_id
+      response.headers["X-Process-Time"] = str(process_time)
+      
+      return response
+  ```
+
+## Testing
+
+- **FastAPI TestClient**
+  - Use TestClient for testing API endpoints
+  - Create fixtures for common test resources
+  ```python
+  # ✅ DO: Write comprehensive API tests
+  import pytest
+  from fastapi.testclient import TestClient
+  from api_service import app
+  
+  client = TestClient(app)
+  
+  @pytest.fixture
+  def sample_pdf():
+      """Fixture to provide a sample PDF for testing."""
+      with open("tests/samples/sample.pdf", "rb") as f:
+          return f.read()
+  
+  def test_health_endpoint():
+      """Test the health check endpoint."""
+      response = client.get("/health")
+      assert response.status_code == 200
+      data = response.json()
+      assert data["status"] == "ok"
+      assert "version" in data
+  
+  def test_parse_endpoint(sample_pdf):
+      """Test the document parsing endpoint."""
+      response = client.post(
+          "/parse",
+          files={"file": ("sample.pdf", sample_pdf, "application/pdf")}
+      )
+      
+      assert response.status_code == 200
+      data = response.json()
+      
+      # Verify response structure
+      assert "symbols" in data
+      assert "entities" in data
+      assert "metadata" in data
+      
+      # Verify entities
+      entities = data["entities"]
+      assert "words" in entities
+      assert "sentences" in entities
+  ``` 

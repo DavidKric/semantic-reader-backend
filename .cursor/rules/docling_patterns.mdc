@@ -1,0 +1,260 @@
+---
+description: Docling-specific patterns and conventions for Semantic Reader backend
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Docling-Specific Patterns and Conventions
+
+## Docling Document Structure
+
+- **DoclingDocument Model**
+  - Use the Pydantic model from docling-core for document structure
+  - Follow the hierarchical tree structure for document organization
+  ```python
+  # ✅ DO: Properly interact with DoclingDocument
+  from docling_core.types import DoclingDocument
+  
+  def load_document(json_data: Dict[str, Any]) -> DoclingDocument:
+      """Load document from JSON data."""
+      return DoclingDocument.model_validate(json_data)
+  
+  def validate_document(json_data: Dict[str, Any]) -> bool:
+      """Validate JSON against DoclingDocument schema."""
+      try:
+          DoclingDocument.model_validate(json_data)
+          return True
+      except Exception as e:
+          logger.error(f"Validation error: {e}")
+          return False
+  ```
+
+## PaperMage Compatibility Layer
+
+- **Document Conversion**
+  - Follow the JSON structure requirements from PaperMage v0.18+
+  - Maintain exact compatibility with PaperMage's expected format
+  ```python
+  # ✅ DO: Maintain PaperMage compatibility
+  def convert_docling_to_papermage_json(doc: DoclingDocument) -> Dict[str, Any]:
+      """Convert DoclingDocument to PaperMage JSON format."""
+      return {
+          "symbols": get_full_text(doc),
+          "entities": {
+              "words": extract_words(doc),
+              "sentences": extract_sentences(doc),
+              "paragraphs": extract_paragraphs(doc),
+              "blocks": extract_blocks(doc),
+              # Other layers
+          },
+          "metadata": extract_metadata(doc)
+      }
+  ```
+
+## Coordinate System Handling
+
+- **PDF Coordinate System**
+  - Remember PDF uses bottom-left origin (0,0)
+  - Raster images often use top-left origin
+  - Implement proper transformations when converting
+  ```python
+  # ✅ DO: Handle coordinate system transformations
+  def pdf_to_image_coordinates(
+      box: Box, 
+      page_height: float
+  ) -> Box:
+      """Convert PDF coordinates (bottom-left origin) to image coordinates (top-left origin)."""
+      return Box(
+          x0=box.x0,
+          y0=page_height - box.y1,  # Transform Y coordinate
+          x1=box.x1,
+          y1=page_height - box.y0,  # Transform Y coordinate
+      )
+  
+  def image_to_pdf_coordinates(
+      box: Box, 
+      page_height: float
+  ) -> Box:
+      """Convert image coordinates (top-left origin) to PDF coordinates (bottom-left origin)."""
+      return Box(
+          x0=box.x0,
+          y0=page_height - box.y1,  # Transform Y coordinate
+          x1=box.x1,
+          y1=page_height - box.y0,  # Transform Y coordinate
+      )
+  ```
+
+## RTL Text Handling
+
+- **RTL-Specific Processing**
+  - Pay special attention to documents with right-to-left text
+  - Implement BiDi algorithm for proper text reordering
+  - Track character positions before and after reordering
+  ```python
+  # ✅ DO: Properly handle RTL text
+  from docling_core.utils.rtl import reorder_text
+  
+  def process_rtl_text(text: str) -> Dict[str, Any]:
+      """Process right-to-left text with character position tracking."""
+      reordered, char_map = reorder_text(text)
+      return {
+          "original": text,
+          "reordered": reordered,
+          "char_map": char_map
+      }
+  
+  def transform_span_indices(
+      start: int, 
+      end: int, 
+      char_map: Dict[int, int]
+  ) -> Tuple[int, int]:
+      """Transform span indices using character mapping."""
+      new_start = char_map.get(start, start)
+      new_end = char_map.get(end - 1, end - 1) + 1
+      return new_start, new_end
+  ```
+
+## Layout Analysis
+
+- **Document Layout Components**
+  - Handle hierarchical structure of document layout
+  - Extract and process sections, paragraphs, columns properly
+  ```python
+  # ✅ DO: Process document layout components
+  def extract_layout_structure(doc: DoclingDocument) -> Dict[str, List[Dict[str, Any]]]:
+      """Extract layout structure from document."""
+      return {
+          "sections": extract_sections(doc),
+          "columns": extract_columns(doc),
+          "paragraphs": extract_paragraphs(doc),
+          "lines": extract_lines(doc),
+          "blocks": extract_blocks(doc)
+      }
+  ```
+
+## Special Document Elements
+
+- **Bibliography and Citations**
+  - Detect and process bibliography sections
+  - Identify citation markers in text and link to references
+  ```python
+  # ✅ DO: Handle bibliography and citations
+  def extract_bibliography(doc: DoclingDocument) -> List[Dict[str, Any]]:
+      """Extract bibliography entries from document."""
+      references = []
+      # Logic to identify bibliography section
+      # and extract individual references
+      return references
+  
+  def detect_citations(text: str) -> List[Dict[str, Any]]:
+      """Detect citation markers in text."""
+      # Pattern matching for common citation formats
+      # [1], [Smith et al., 2020], etc.
+      return citations
+  ```
+
+- **Tables and Figures**
+  - Properly extract and process tables with structure
+  - Handle figures with captions and references
+  ```python
+  # ✅ DO: Process tables and figures
+  def extract_tables(doc: DoclingDocument) -> List[Dict[str, Any]]:
+      """Extract tables with structure from document."""
+      tables = []
+      # Table extraction logic
+      return tables
+  
+  def extract_figures(doc: DoclingDocument) -> List[Dict[str, Any]]:
+      """Extract figures with captions from document."""
+      figures = []
+      # Figure extraction logic
+      return figures
+  ```
+
+## Validation and Testing
+
+- **Document Validation**
+  - Validate output against DoclingDocument schema
+  - Check for integrity of document structure
+  ```python
+  # ✅ DO: Validate document structure
+  def validate_document_structure(doc: Dict[str, Any]) -> List[str]:
+      """Validate document structure and return any issues found."""
+      issues = []
+      
+      # Check required top-level fields
+      for field in ["symbols", "entities", "metadata"]:
+          if field not in doc:
+              issues.append(f"Missing required field: {field}")
+      
+      # Check entities structure
+      if "entities" in doc:
+          for layer in ["words", "sentences", "paragraphs"]:
+              if layer not in doc["entities"]:
+                  issues.append(f"Missing entity layer: {layer}")
+      
+      return issues
+  ```
+
+- **Output Consistency**
+  - Ensure consistent output format across different document types
+  - Verify that span indices match text content
+  ```python
+  # ✅ DO: Ensure output consistency
+  def verify_span_indices(doc: Dict[str, Any]) -> List[str]:
+      """Verify that span indices match text content."""
+      issues = []
+      text = doc.get("symbols", "")
+      
+      for layer_name, entities in doc.get("entities", {}).items():
+          for i, entity in enumerate(entities):
+              if "spans" in entity:
+                  for span in entity["spans"]:
+                      start = span.get("start", 0)
+                      end = span.get("end", 0)
+                      
+                      if start < 0 or end > len(text) or start >= end:
+                          issues.append(
+                              f"Invalid span in {layer_name}[{i}]: {start}-{end}"
+                          )
+      
+      return issues
+  ```
+
+## Performance Optimization
+
+- **Memory Efficiency**
+  - Use streaming processing for large documents
+  - Optimize memory usage for PDF parsing
+  ```python
+  # ✅ DO: Optimize memory usage
+  def process_large_document(file_path: str) -> Dict[str, Any]:
+      """Process large document with memory optimization."""
+      # Stream processing approach
+      doc = {"entities": {}}
+      
+      # Process document page by page
+      with open(file_path, "rb") as f:
+          parser = StreamingDocumentParser()
+          for page in parser.stream_pages(f):
+              # Process and accumulate results
+              process_page(page, doc)
+      
+      return doc
+  ```
+
+- **Processing Speed**
+  - Optimize for parsing speed as specified in PRD
+  - Target: 10-page scientific paper in under 2 seconds
+  ```python
+  # ✅ DO: Optimize for processing speed
+  def optimize_parsing_pipeline(parser: DocumentParser) -> None:
+      """Configure parser for optimal processing speed."""
+      # Set optimal configuration
+      parser.set_options({
+          "parallel_processing": True,
+          "preload_models": True,
+          "batch_size": 4,
+          "low_memory_mode": False
+      })
+  ``` 

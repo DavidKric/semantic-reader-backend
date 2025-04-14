@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "generatedAt": "2025-04-13T19:24:12.372Z",
+    "tasksAnalyzed": 5,
+    "thresholdScore": 5,
+    "projectName": "Your Project Name",
+    "usedResearch": true
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 7,
+      "taskTitle": "Implement FastAPI Service",
+      "complexityScore": 8,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Break down the implementation of the FastAPI service into subtasks such as setting up the project structure, creating endpoints, handling file uploads, implementing error handling, configuring CORS, and adding security measures.",
+      "reasoning": "This task involves multiple components, including creating endpoints, handling file uploads, and ensuring security, which require careful integration and adherence to best practices for FastAPI."
+    },
+    {
+      "taskId": 8,
+      "taskTitle": "Implement Visualization Tools",
+      "complexityScore": 6,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Divide the task into subtasks such as creating the visualization module, implementing rendering functions, adding interactivity, ensuring RTL text support, and testing the visualization outputs.",
+      "reasoning": "While the task is focused on visualization, it includes optional interactivity and RTL text support, which add moderate complexity but are less critical compared to other tasks."
+    },
+    {
+      "taskId": 9,
+      "taskTitle": "Create End-to-End Tests",
+      "complexityScore": 9,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Break down the testing task into subtasks such as setting up the test environment, creating test cases for different document types, implementing performance tests, and documenting acceptable differences.",
+      "reasoning": "This task is highly complex due to the need for comprehensive testing across various scenarios, including performance and compatibility with reference outputs."
+    },
+    {
+      "taskId": 10,
+      "taskTitle": "Create Docker Deployment and Documentation",
+      "complexityScore": 7,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Divide the task into subtasks such as creating the Dockerfile, configuring dependencies, writing usage documentation, and setting up CI/CD pipelines.",
+      "reasoning": "This task requires both technical configuration and detailed documentation, making it moderately complex but manageable with proper planning."
+    },
+    {
+      "taskId": 11,
+      "taskTitle": "Refactor Processing Pipeline to Use DoclingDocument Structure End-to-End",
+      "complexityScore": 10,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Break down the refactoring task into subtasks such as identifying conversion points, updating predictors and parsers, optimizing data flow, and documenting the new architecture.",
+      "reasoning": "This task is highly complex due to the need for extensive codebase modifications, ensuring compatibility, and optimizing performance while maintaining functional equivalence."
+    }
+  ]
+}

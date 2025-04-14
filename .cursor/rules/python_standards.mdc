@@ -1,0 +1,331 @@
+---
+description: Python, Docling, and FastAPI coding standards for the Semantic Reader backend
+globs: "**/*.py"
+alwaysApply: true
+---
+
+# Python, Docling, and FastAPI Coding Standards
+
+## Python Code Style
+
+- **Follow PEP 8 Guidelines**
+  - Use 4 spaces per indentation level
+  - Maximum line length of 88 characters (Black default)
+  - Use snake_case for variables, functions, and methods
+  - Use PascalCase for classes
+  - Use UPPER_CASE for constants
+  ```python
+  # ✅ DO: Follow consistent naming conventions
+  def process_document(document_path):
+      MAXIMUM_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+      
+      class DocumentProcessor:
+          def __init__(self, config_path):
+              self.config_path = config_path
+  
+  # ❌ DON'T: Mix naming styles
+  def ProcessDocument(documentPath):
+      maximum_file_size = 10 * 1024 * 1024
+  ```
+
+- **Type Hints**
+  - Always use type hints for function parameters and return values
+  - Use `Optional[Type]` for optional parameters with `None` as default
+  - Use `Union[Type1, Type2]` for parameters that can have multiple types
+  ```python
+  # ✅ DO: Use proper type hints
+  from typing import Dict, List, Optional, Union, Any
+  
+  def parse_document(
+      document_path: str,
+      options: Optional[Dict[str, Any]] = None,
+      page_range: Optional[List[int]] = None
+  ) -> Dict[str, Any]:
+      """Parse a document with optional parameters."""
+      if options is None:
+          options = {}
+      return {"status": "success", "data": {}}
+  
+  # ❌ DON'T: Omit type hints
+  def parse_document(document_path, options=None, page_range=None):
+      if options is None:
+          options = {}
+      return {"status": "success", "data": {}}
+  ```
+
+- **Docstrings**
+  - Use Google-style docstrings
+  - Include descriptions for all parameters, return values, and exceptions
+  - Add usage examples for public API functions
+  ```python
+  # ✅ DO: Write comprehensive docstrings
+  def convert_docling_to_papermage(
+      docling_document: Dict[str, Any],
+      include_metadata: bool = True
+  ) -> Dict[str, Any]:
+      """Convert Docling document format to PaperMage format.
+      
+      Args:
+          docling_document: A dictionary containing the Docling document.
+          include_metadata: Whether to include metadata in the converted document.
+          
+      Returns:
+          A dictionary containing the document in PaperMage format.
+          
+      Raises:
+          ValueError: If the input document is not valid Docling format.
+          
+      Example:
+          >>> doc = parse_document("example.pdf")
+          >>> papermage_doc = convert_docling_to_papermage(doc)
+      """
+  ```
+
+## FastAPI Best Practices
+
+- **Router Organization**
+  - Use APIRouter for grouping related routes
+  - Place route handlers in dedicated modules
+  - Use consistent route naming conventions
+  ```python
+  # ✅ DO: Organize routes with APIRouter
+  from fastapi import APIRouter, Depends, HTTPException
+  
+  router = APIRouter(
+      prefix="/documents",
+      tags=["documents"],
+      dependencies=[Depends(verify_api_key)],
+  )
+  
+  @router.post("/parse")
+  async def parse_document(file: UploadFile = File(...)):
+      """Parse a document file."""
+      # Implementation
+  ```
+
+- **Pydantic Models**
+  - Define request and response models using Pydantic
+  - Use descriptive field names and appropriate validators
+  - Add example values for documentation
+  ```python
+  # ✅ DO: Use Pydantic models for requests and responses
+  from pydantic import BaseModel, Field, validator
+  from typing import Optional, List
+  
+  class ParseRequest(BaseModel):
+      include_metadata: bool = True
+      page_range: Optional[List[int]] = None
+      
+      @validator("page_range")
+      def validate_page_range(cls, v):
+          if v is not None and len(v) > 0:
+              if v[0] < 1:
+                  raise ValueError("Page numbers must be positive integers")
+          return v
+      
+      class Config:
+          schema_extra = {
+              "example": {
+                  "include_metadata": True,
+                  "page_range": [1, 2, 3],
+              }
+          }
+  ```
+
+- **Error Handling**
+  - Use appropriate HTTP status codes
+  - Return consistent error response structures
+  - Include helpful error messages
+  ```python
+  # ✅ DO: Handle errors consistently
+  @router.post("/parse")
+  async def parse_document(file: UploadFile = File(...)):
+      if file.content_type != "application/pdf":
+          raise HTTPException(
+              status_code=400,
+              detail="Only PDF files are supported"
+          )
+      
+      try:
+          # Process document
+          return {"status": "success", "data": result}
+      except ValueError as e:
+          raise HTTPException(status_code=400, detail=str(e))
+      except Exception as e:
+          logger.error(f"Error processing document: {e}")
+          raise HTTPException(
+              status_code=500,
+              detail="An error occurred while processing the document"
+          )
+  ```
+
+## Docling-Specific Patterns
+
+- **Box Representation**
+  - Use the Box class for bounding boxes with correct coordinate system
+  - Remember that PDF coordinates have (0,0) at bottom-left
+  ```python
+  # ✅ DO: Use consistent coordinate system
+  from dataclasses import dataclass
+  
+  @dataclass
+  class Box:
+      """Bounding box with PDF coordinate system (origin at bottom-left)."""
+      x0: float  # Left coordinate
+      y0: float  # Bottom coordinate
+      x1: float  # Right coordinate
+      y1: float  # Top coordinate
+      
+      @property
+      def width(self) -> float:
+          return self.x1 - self.x0
+          
+      @property
+      def height(self) -> float:
+          return self.y1 - self.y0
+  
+  def create_entity_box(entity: Dict[str, Any]) -> Box:
+      """Create a Box from entity coordinates."""
+      return Box(
+          x0=entity["x0"],
+          y0=entity["y0"],
+          x1=entity["x1"],
+          y1=entity["y1"]
+      )
+  ```
+
+- **Document Structure**
+  - Follow the hierarchical structure for document representation
+  - Ensure proper organization of entities and layers
+  ```python
+  # ✅ DO: Maintain proper document structure
+  def create_papermage_json(document: Dict[str, Any]) -> Dict[str, Any]:
+      """Create PaperMage JSON structure from parsed document."""
+      return {
+          "symbols": document["full_text"],
+          "entities": {
+              "words": document["words"],
+              "sentences": document["sentences"],
+              "paragraphs": document["paragraphs"],
+              "sections": document["sections"],
+              # Other entity types
+          },
+          "metadata": document["metadata"]
+      }
+  ```
+
+- **RTL Text Handling**
+  - Properly handle right-to-left text directionality
+  - Track character positions for correct span indices
+  ```python
+  # ✅ DO: Handle RTL text properly
+  def process_text_with_direction(text: str, direction: str = "ltr") -> Dict[str, Any]:
+      """Process text with directionality information."""
+      is_rtl = direction.lower() == "rtl"
+      
+      # Track character positions for proper indexing
+      char_positions = []
+      reordered_text = text
+      
+      if is_rtl:
+          # Apply appropriate RTL text processing
+          # and track original character positions
+          char_positions = calculate_rtl_char_positions(text)
+      
+      return {
+          "text": reordered_text,
+          "direction": direction,
+          "char_positions": char_positions
+      }
+  ```
+
+## Testing Standards
+
+- **Unit Tests**
+  - Use pytest for testing
+  - Organize tests to mirror the module structure
+  - Use appropriate fixtures and parametrization
+  ```python
+  # ✅ DO: Write comprehensive tests
+  import pytest
+  from app.converters import docling_to_papermage_converter
+  
+  @pytest.fixture
+  def sample_docling_document():
+      """Return a sample Docling document for testing."""
+      return {
+          # Sample document data
+      }
+  
+  def test_conversion(sample_docling_document):
+      """Test document conversion from Docling to PaperMage format."""
+      converter = docling_to_papermage_converter.DoclingToPaperMageConverter()
+      result = converter.convert(sample_docling_document)
+      
+      assert "symbols" in result
+      assert "entities" in result
+      assert "metadata" in result
+  ```
+
+- **Integration Tests**
+  - Test FastAPI endpoints using TestClient
+  - Mock external dependencies when appropriate
+  - Test with realistic sample documents
+  ```python
+  # ✅ DO: Write integration tests for API endpoints
+  from fastapi.testclient import TestClient
+  from app.api_service import app
+  
+  client = TestClient(app)
+  
+  def test_parse_endpoint():
+      """Test the document parsing endpoint."""
+      with open("tests/samples/sample.pdf", "rb") as f:
+          response = client.post(
+              "/parse",
+              files={"file": ("sample.pdf", f, "application/pdf")}
+          )
+      
+      assert response.status_code == 200
+      assert "symbols" in response.json()
+  ```
+
+## Project Structure
+
+- **Module Organization**
+  - Follow the directory structure defined in the PRD
+  - Keep related functionality in appropriate modules
+  ```
+  /
+  ├── api_service.py                   # Main FastAPI application
+  ├── converters/
+  │   └── docling_to_papermage_converter.py  # Conversion logic
+  ├── visualizers/
+  │   └── docling_visual.py            # Visualization utilities
+  ├── util/
+  │   ├── rtl_utils.py                 # RTL text utilities
+  │   └── pdf_utils.py                 # PDF processing utilities  
+  └── tests/
+      ├── test_converters/
+      ├── test_api_service.py
+      └── test_visualizers/
+  ```
+
+- **Configuration Management**
+  - Use environment variables for configuration
+  - Define settings using Pydantic BaseSettings
+  ```python
+  # ✅ DO: Use Pydantic for configuration
+  from pydantic import BaseSettings, Field
+  
+  class Settings(BaseSettings):
+      """Application settings loaded from environment variables."""
+      max_file_size: int = Field(10 * 1024 * 1024, env="MAX_FILE_SIZE")
+      debug: bool = Field(False, env="DEBUG")
+      allowed_origins: str = Field("*", env="ALLOWED_ORIGINS")
+      
+      class Config:
+          env_file = ".env"
+          
+  settings = Settings()
+  ``` 
