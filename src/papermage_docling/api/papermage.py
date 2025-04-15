@@ -1,245 +1,87 @@
 """
-Adapters for the PaperMage API formats.
+PaperMage API for document processing.
+
+This module provides compatibility with the PaperMage API format while using
+Docling directly for document processing.
 """
+
+import logging
 from typing import Any, Dict, List, Optional
 
-from .base import BaseAdapter, FormatVersionInfo, AdapterRegistry
+from papermage_docling.converter import convert_document
 
+logger = logging.getLogger(__name__)
 
-class PaperMageAdapter(BaseAdapter):
-    """Base adapter for PaperMage formats."""
-    
-    @property
-    def name(self) -> str:
-        """Name of the adapter."""
-        return "papermage"
-    
-    @property
-    def supports_formats(self) -> List[FormatVersionInfo]:
-        """List of formats supported by this adapter."""
-        return [
-            FormatVersionInfo(
-                format_name="papermage",
-                version="*",
-                description="Generic PaperMage format adapter"
-            )
-        ]
-    
-    def convert(self, data: Any, **kwargs) -> Dict[str, Any]:
-        """
-        Convert between PaperMage and Docling formats.
-        
-        Args:
-            data: The data to convert
-            **kwargs: Additional arguments for the conversion
-            
-        Returns:
-            The converted data
-        """
-        # This is a placeholder implementation
-        return data
-    
-    def validate(self, data: Any) -> bool:
-        """
-        Validate if the data is in a PaperMage format.
-        
-        Args:
-            data: The data to validate
-            
-        Returns:
-            True if the data is valid, False otherwise
-        """
-        if not isinstance(data, dict):
-            return False
-            
-        if "version" not in data:
-            return False
-            
-        if "document" not in data:
-            return False
-            
-        return True
-
-
-class PaperMageV1Adapter(BaseAdapter):
-    """Adapter for PaperMage v1 format."""
-    
-    @property
-    def name(self) -> str:
-        """Name of the adapter."""
-        return "papermage_v1"
-    
-    @property
-    def supports_formats(self) -> List[FormatVersionInfo]:
-        """List of formats supported by this adapter."""
-        return [
-            FormatVersionInfo(
-                format_name="papermage",
-                version="1.0",
-                description="PaperMage format version 1.0"
-            )
-        ]
-    
-    def convert(self, data: Any, **kwargs) -> Dict[str, Any]:
-        """
-        Convert Docling data to PaperMage v1 format.
-        
-        Args:
-            data: Docling document data
-            **kwargs: Additional arguments for the conversion
-            
-        Returns:
-            Data in PaperMage v1 format
-        """
-        # This is a placeholder implementation
-        # In a real implementation, this would convert between formats
-        return {
-            "version": "1.0",
-            "document": {
-                "pages": self._convert_pages(data.get("pages", [])),
-                "metadata": self._convert_metadata(data.get("metadata", {})),
-            }
-        }
-    
-    def validate(self, data: Any) -> bool:
-        """
-        Validate if the data is in PaperMage v1 format.
-        
-        Args:
-            data: The data to validate
-            
-        Returns:
-            True if the data is valid, False otherwise
-        """
-        # This is a simplified validation
-        if not isinstance(data, dict):
-            return False
-            
-        if data.get("version") != "1.0":
-            return False
-            
-        if "document" not in data:
-            return False
-            
-        if "pages" not in data["document"]:
-            return False
-            
-        return True
-    
-    def _convert_pages(self, pages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Convert Docling pages to PaperMage pages.
-        
-        Args:
-            pages: Docling pages data
-            
-        Returns:
-            PaperMage pages data
-        """
-        # Placeholder implementation
-        return [self._convert_page(page) for page in pages]
-    
-    def _convert_page(self, page: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Convert a single Docling page to PaperMage page.
-        
-        Args:
-            page: Docling page data
-            
-        Returns:
-            PaperMage page data
-        """
-        # Placeholder implementation
-        return {
-            "number": page.get("number", 0),
-            "width": page.get("width", 0),
-            "height": page.get("height", 0),
-            "blocks": self._convert_blocks(page.get("blocks", [])),
-        }
-    
-    def _convert_blocks(self, blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Convert Docling blocks to PaperMage blocks.
-        
-        Args:
-            blocks: Docling blocks data
-            
-        Returns:
-            PaperMage blocks data
-        """
-        # Placeholder implementation
-        return [self._convert_block(block) for block in blocks]
-    
-    def _convert_block(self, block: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Convert a single Docling block to PaperMage block.
-        
-        Args:
-            block: Docling block data
-            
-        Returns:
-            PaperMage block data
-        """
-        # Placeholder implementation
-        return {
-            "id": block.get("id", ""),
-            "type": block.get("type", "text"),
-            "bbox": block.get("bbox", [0, 0, 0, 0]),
-            "text": block.get("text", ""),
-            "confidence": block.get("confidence", 1.0),
-        }
-    
-    def _convert_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Convert Docling metadata to PaperMage metadata.
-        
-        Args:
-            metadata: Docling metadata
-            
-        Returns:
-            PaperMage metadata
-        """
-        # Placeholder implementation
-        return {
-            "title": metadata.get("title", ""),
-            "author": metadata.get("author", ""),
-            "date": metadata.get("date", ""),
-        }
-
-
-class PaperMageLatestAdapter(PaperMageV1Adapter):
-    """Adapter for the latest PaperMage format (currently v1)."""
-    
-    @property
-    def name(self) -> str:
-        """Name of the adapter."""
-        return "papermage_latest"
-    
-    @property
-    def supports_formats(self) -> List[FormatVersionInfo]:
-        """List of formats supported by this adapter."""
-        return [
-            FormatVersionInfo(
-                format_name="papermage",
-                version="latest",
-                description="Latest PaperMage format"
-            )
-        ]
-
-
-# Function to register default adapters
-def register_default_adapters(registry: AdapterRegistry) -> None:
+def process_document(
+    document: Any,
+    options: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
     """
-    Register default PaperMage adapters with the given registry.
+    Process a document using Docling and return it in PaperMage JSON format.
     
     Args:
-        registry: The adapter registry to register adapters with
+        document: The document to process (file path, bytes, or file-like object)
+        options: Processing options
+            - enable_ocr: Whether to enable OCR
+            - ocr_language: Language for OCR
+            - detect_tables: Whether to detect tables
+            - detect_figures: Whether to detect figures
+    
+    Returns:
+        Dict: Document in PaperMage JSON format
     """
-    registry.register(PaperMageAdapter())
-    registry.register(PaperMageV1Adapter())
-    registry.register(PaperMageLatestAdapter())
+    if options is None:
+        options = {}
+    
+    # Convert using the new unified converter
+    result = convert_document(document, options=options)
+    
+    # Add PaperMage versioning wrapper (for compatibility)
+    return {
+        "version": "1.0",
+        "document": result
+    }
 
+def get_supported_formats() -> List[str]:
+    """
+    Get list of supported document formats.
+    
+    Returns:
+        List[str]: Supported formats
+    """
+    # Docling supports PDF, DOCX, etc., but we'll start with PDF for compatibility
+    return ["pdf"]
 
-# Register the adapters when this module is imported
-papermage_adapter_registry = AdapterRegistry()
-register_default_adapters(papermage_adapter_registry) 
+# For compatibility with code that expects the old PaperMage classes
+class PaperMageManager:
+    """
+    Compatibility class for code that expects the old PaperMage API.
+    This provides the same interface but uses Docling directly under the hood.
+    """
+    
+    @staticmethod
+    def process_document(document: Any, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Process a document using Docling and return it in PaperMage format.
+        
+        Args:
+            document: The document to process
+            options: Processing options
+        
+        Returns:
+            Dict: Document in PaperMage format
+        """
+        return process_document(document, options)
+    
+    @staticmethod
+    def get_supported_formats() -> List[str]:
+        """
+        Get list of supported document formats.
+        
+        Returns:
+            List[str]: Supported formats
+        """
+        return get_supported_formats()
+
+# Create a singleton instance for code that expects it
+papermage = PaperMageManager() 

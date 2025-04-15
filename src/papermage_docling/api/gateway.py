@@ -2,79 +2,101 @@
 Document Gateway for the Semantic Reader API.
 
 This module provides the gateway interface for document operations in the semantic reader,
-encapsulating the underlying adapter mechanism and providing a unified entry point.
+using Docling directly for document processing.
 """
 
-from typing import Any, Dict, List, Optional, Type, Union
+import logging
+from typing import Any, Dict, List, Optional, Union
 
-from papermage_docling.api.adapters.base import BaseAdapter, FormatVersionInfo
-from papermage_docling.api.adapters.factory import (
-    get_adapter,
-    register_adapter,
-    list_supported_formats,
-    convert_document as _convert_document
-)
+from papermage_docling.converter import convert_document
 
+logger = logging.getLogger(__name__)
 
-class DocumentGateway:
+def process_document(
+    document: Any,
+    options: Optional[Dict[str, Any]] = None,
+    **kwargs
+) -> Dict[str, Any]:
     """
-    Gateway for document operations in the semantic reader.
+    Process a document using Docling and return the result in PaperMage format.
     
-    This class provides a unified interface for working with documents
-    across different formats, encapsulating the underlying adapter mechanism
-    and providing a clean API for the rest of the application.
+    Args:
+        document: The document to process (path, bytes, or file-like object)
+        options: Options for document processing
+            - enable_ocr: Whether to enable OCR (default: False)
+            - ocr_language: Language for OCR (default: "eng")
+            - detect_tables: Whether to detect tables (default: True)
+            - detect_figures: Whether to detect figures (default: True)
+        **kwargs: Additional parameters for the conversion process
+            
+    Returns:
+        Dict[str, Any]: The processed document in PaperMage format
+        
+    Raises:
+        ValueError: If document processing fails
     """
+    if options is None:
+        options = {}
     
-    @staticmethod
-    def convert(
-        document: Any,
-        source_format: Union[str, FormatVersionInfo],
-        target_format: Union[str, FormatVersionInfo],
-        **kwargs
-    ) -> Any:
-        """
-        Convert a document from one format to another.
+    try:
+        # Map options to converter options
+        converter_options = {
+            "detect_tables": options.get("detect_tables", True),
+            "detect_figures": options.get("detect_figures", True),
+            "enable_ocr": options.get("enable_ocr", False),
+            "ocr_language": options.get("ocr_language", "eng"),
+        }
         
-        Args:
-            document: The document to convert (path, bytes, or file-like object)
-            source_format: Format to convert from (string or FormatVersionInfo)
-            target_format: Format to convert to (string or FormatVersionInfo)
-            **kwargs: Additional parameters for the conversion process
-                - Parameters starting with "adapter_" are passed to the adapter constructor
-                - Other parameters are passed to the conversion method
-                
-        Returns:
-            Any: The converted document
-            
-        Raises:
-            ValueError: If no compatible adapter is found or conversion fails
-        """
-        return _convert_document(document, source_format, target_format, **kwargs)
-    
-    @staticmethod
-    def supported_formats() -> Dict[str, List[str]]:
-        """
-        Get a list of all supported format conversions.
+        # Process using the new unified converter
+        logger.info(f"Processing document with options: {converter_options}")
+        result = convert_document(document, options=converter_options)
         
-        Returns:
-            Dict[str, List[str]]: A dictionary mapping source formats to 
-            lists of supported target formats
-        """
-        return list_supported_formats()
-    
-    @staticmethod
-    def register_format_adapter(adapter_class: Type[BaseAdapter]) -> None:
-        """
-        Register a custom document format adapter.
-        
-        Args:
-            adapter_class: The adapter class to register
-            
-        Raises:
-            TypeError: If adapter_class is not a subclass of BaseAdapter
-        """
-        register_adapter(adapter_class)
+        return result
+    except Exception as e:
+        logger.error(f"Error processing document: {e}")
+        raise ValueError(f"Document processing failed: {e}") from e
 
 
-# Create a singleton instance for easy access
-gateway = DocumentGateway() 
+def get_supported_formats() -> List[str]:
+    """
+    Get a list of supported document formats.
+    
+    Returns:
+        List[str]: List of supported input formats (currently only PDF)
+    """
+    # Docling supports PDF, DOCX, etc., but we'll start with PDF for consistency
+    return ["pdf"]
+
+
+# Compatibility function for the old gateway API
+def process_legacy(
+    document: Any,
+    source_format: str = "pdf",
+    target_format: str = "papermage",
+    **kwargs
+) -> Any:
+    """
+    Legacy compatibility function that mimics the old convert method.
+    
+    Args:
+        document: The document to convert
+        source_format: Source format (ignored, always assumes PDF)
+        target_format: Target format (ignored, always produces PaperMage JSON)
+        **kwargs: Additional parameters passed to process_document
+            
+    Returns:
+        The processed document in PaperMage format
+    """
+    # Extract adapter prefixed options
+    adapter_options = {}
+    for key, value in list(kwargs.items()):
+        if key.startswith("adapter_"):
+            real_key = key[8:]  # Remove "adapter_" prefix
+            adapter_options[real_key] = value
+            kwargs.pop(key)
+    
+    # Override options with adapter_options
+    kwargs.update(adapter_options)
+    
+    # Process using the new unified converter
+    return process_document(document, options=kwargs) 

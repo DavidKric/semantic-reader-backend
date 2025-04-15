@@ -6,6 +6,8 @@ A FastAPI-based backend for the Semantic Reader application, following modern be
 
 The Semantic Reader Backend provides API endpoints for document parsing, analysis, and semantic understanding. It uses FastAPI, SQLAlchemy, and follows clean architecture principles with proper separation of concerns.
 
+The backend uses Docling directly for document processing, providing a unified and simplified approach to PDF parsing, table detection, figure extraction, and more. This integration eliminates the need for custom pipeline orchestration and reduces complexity while maintaining the same output format.
+
 ## Project Structure
 
 The project follows a modern, modular structure:
@@ -104,6 +106,20 @@ API documentation is available at:
 ## License
 
 [MIT License](LICENSE)
+
+## Docling Integration
+
+The Semantic Reader Backend has been refactored to use Docling directly for document processing:
+
+- **Simplified Architecture**: Removed multiple layers of adapters, parsers, and predictors in favor of a unified Docling-based converter
+- **Improved Maintenance**: Updates to Docling automatically improve the backend's capabilities
+- **Same Output Format**: Maintains backward compatibility with existing clients
+- **Enhanced Features**: Leverages Docling's built-in capabilities for table detection, figure extraction, language detection, and more
+
+To try the refactored implementation, run the demo script:
+```
+python scripts/demo_refactored.py
+```
 
 ## Migration Guide
 

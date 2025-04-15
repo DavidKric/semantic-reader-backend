@@ -12,8 +12,8 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from papermage_docling.parsers import DoclingPdfParser
-from papermage_docling.api import gateway
+from papermage_docling.converter import convert_document
+from papermage_docling.api.gateway import process_document, get_supported_formats
 
 # Create FastAPI app
 app = FastAPI(
@@ -46,12 +46,14 @@ def read_root():
     }
 
 @app.post("/process")
-async def process_document(
+async def process_document_endpoint(
     file: UploadFile = File(...),
     output_format: str = Form("papermage"),
     detect_rtl: bool = Form(True),
     enable_ocr: bool = Form(False),
     ocr_language: str = Form("eng"),
+    detect_tables: bool = Form(True),
+    detect_figures: bool = Form(True),
 ):
     """
     Process a document and return the parsed content.
@@ -62,6 +64,8 @@ async def process_document(
         detect_rtl: Whether to detect and process right-to-left text
         enable_ocr: Whether to enable OCR for scanned documents
         ocr_language: OCR language code
+        detect_tables: Whether to detect tables
+        detect_figures: Whether to detect figures
         
     Returns:
         The processed document data
@@ -73,17 +77,20 @@ async def process_document(
         temp_file_path = temp_file.name
     
     try:
-        # Process the document
-        parser = DoclingPdfParser(
-            detect_rtl=detect_rtl,
-            enable_ocr=enable_ocr,
-            ocr_language=ocr_language,
-        )
+        # Process the document with Docling directly
+        options = {
+            "detect_rtl": detect_rtl,
+            "enable_ocr": enable_ocr,
+            "ocr_language": ocr_language,
+            "detect_tables": detect_tables,
+            "detect_figures": detect_figures,
+        }
         
-        result = parser.parse(
-            temp_file_path,
-            output_format=output_format
-        )
+        result = process_document(temp_file_path, options=options)
+        
+        # If raw Docling output is requested, return directly from converter
+        if output_format.lower() == "docling":
+            result = convert_document(temp_file_path, options=options, use_legacy=False)
         
         return JSONResponse(content=result)
     except Exception as e:
@@ -95,6 +102,8 @@ async def process_document(
 @app.get("/formats")
 def get_formats():
     """Get available document formats."""
+    formats = get_supported_formats()
+    
     return {
         "formats": [
             {
@@ -109,6 +118,10 @@ def get_formats():
             },
         ]
     }
+
+# Import and include recipe_api router
+from papermage_docling.api.recipe_api import router as recipe_router
+app.include_router(recipe_router)
 
 if __name__ == "__main__":
     import uvicorn

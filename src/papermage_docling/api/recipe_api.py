@@ -2,7 +2,7 @@
 Recipe API endpoints for document processing.
 
 This module provides FastAPI endpoints for document processing using
-the CoreRecipe, mimicking PaperMage's recipe-based approach.
+Docling directly but maintaining the recipe-based API compatibility.
 """
 
 import logging
@@ -16,7 +16,8 @@ from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks, HTTPExce
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from papermage_docling.recipe import CoreRecipe
+# Import the new converter instead of CoreRecipe
+from papermage_docling.converter import convert_document
 
 logger = logging.getLogger(__name__)
 
@@ -73,10 +74,10 @@ async def process_document_with_recipe(
     options: Optional[str] = Form(None)
 ):
     """
-    Process a document using CoreRecipe.
+    Process a document using Docling.
     
     This endpoint provides PaperMage-compatible recipe-based document
-    processing using the CoreRecipe implementation.
+    processing using Docling directly.
     
     Args:
         file: PDF file to process
@@ -110,7 +111,7 @@ async def process_document_with_recipe(
     
     # Process in background
     background_tasks.add_task(
-        process_with_recipe, 
+        process_with_docling, 
         temp_path, 
         job_id, 
         recipe_options.dict()
@@ -134,9 +135,9 @@ async def get_recipe_result(job_id: str):
     
     return _processing_results[job_id]
 
-def process_with_recipe(file_path: str, job_id: str, options: Dict[str, Any]):
+def process_with_docling(file_path: str, job_id: str, options: Dict[str, Any]):
     """
-    Process a document with CoreRecipe in the background.
+    Process a document with Docling in the background.
     
     Args:
         file_path: Path to the temporary file
@@ -144,31 +145,29 @@ def process_with_recipe(file_path: str, job_id: str, options: Dict[str, Any]):
         options: Recipe configuration options
     """
     try:
-        # Create recipe
-        recipe = CoreRecipe(**options)
+        # Map recipe options to converter options
+        converter_options = {
+            "detect_tables": options.get("detect_tables", True),
+            "detect_figures": options.get("detect_figures", True),
+            "enable_ocr": options.get("enable_ocr", False),
+            "ocr_language": options.get("ocr_language", "eng"),
+        }
         
-        # Process document
-        result = recipe.run(file_path)
-        
-        # Convert result to JSON-serializable format
-        if hasattr(result, 'to_json'):
-            json_result = result.to_json()
-        elif hasattr(result, '__dict__'):
-            json_result = result.__dict__
-        else:
-            json_result = {"content": str(result)}
+        # Process document with Docling directly
+        logger.info(f"Processing document for job {job_id} with options: {converter_options}")
+        result = convert_document(file_path, options=converter_options)
         
         # Store result
         _processing_results[job_id] = RecipeResponse(
             job_id=job_id,
             status="completed",
-            result=json_result
+            result=result
         )
         
-        logger.info(f"Completed recipe processing for job {job_id}")
+        logger.info(f"Completed document processing for job {job_id}")
     
     except Exception as e:
-        logger.error(f"Error in recipe processing: {e}")
+        logger.error(f"Error in document processing: {e}")
         _processing_results[job_id] = RecipeResponse(
             job_id=job_id,
             status="error",
