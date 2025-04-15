@@ -1,0 +1,1155 @@
+# Task ID: 7
+# Title: Implement FastAPI Service
+# Status: done
+# Dependencies: 6
+# Priority: medium
+# Description: Create a web service API for the PaperMage-Docling implementation using FastAPI, following the modular structure and integration patterns specified in the implementation guide.
+# Details:
+1. Create a modular FastAPI application structure with main.py, models.py, pipelines.py, api/ directory, and config.py
+2. Implement dedicated endpoints for both URL inputs (/convert/url) and file uploads (/convert/file)
+3. Create DocumentGateway for PDF conversion with both synchronous and asynchronous processing options
+4. Implement background task processing for long-running conversions using BackgroundTasks or Celery
+5. Add file upload handling for PDFs with size/page count limits
+6. Implement error handling for invalid inputs and malicious PDFs
+7. Add /health and /version endpoints
+8. Configure CORS following the patterns in the implementation guide
+9. Set up Uvicorn server configuration for direct execution
+10. Add request validation using Pydantic models for both URL and file upload inputs
+11. Implement proper response formatting compatible with docling-serve
+12. Add security measures including file size restrictions and dependency management
+13. Implement optional UI integration with Gradio (or alternatives) for testing purposes
+14. Add comprehensive configuration management, logging, and monitoring
+15. Implement rate limiting and scalability options for production deployment
+16. Fully document the API with OpenAPI/Swagger
+
+# Test Strategy:
+Create tests in tests/testapi.py that verify:
+1. API endpoints respond correctly and align with docling-serve conventions
+2. PDF parsing via API works as expected for both URL and file upload endpoints
+3. Error handling works for invalid inputs and oversized files
+4. Response format matches expected JSON structure
+5. Test with FastAPI's TestClient
+6. Verify security measures function correctly
+7. Test asynchronous endpoints and background task processing
+8. Verify resource management for large document processing
+9. Test CORS configuration and error handling patterns
+10. Validate both synchronous and asynchronous processing options
+11. Test rate limiting functionality under load conditions
+12. Verify background task status tracking and result retrieval
+13. Test optional Gradio UI integration when enabled
+14. Verify distributed processing with Celery when configured
+
+# Subtasks:
+## 1. Set up FastAPI project structure and core application [done]
+### Dependencies: None
+### Description: Create the initial FastAPI application following the PRD specifications, with api_service.py in the root directory and basic health/version endpoints.
+### Details:
+1. Create `api_service.py` in the root directory as specified in the PRD
+2. Implement configuration handling with environment variables using Pydantic BaseSettings
+3. Create the FastAPI application instance within api_service.py
+4. Implement `/health` endpoint that returns service status
+5. Implement `/version` endpoint that returns application version
+6. Configure CORS middleware with appropriate settings for integration with docling-serve
+7. Set up basic logging middleware
+8. Add Uvicorn server configuration for direct execution
+9. Write unit tests for health and version endpoints using TestClient
+10. Test the application locally using `uvicorn api_service:app --reload`
+
+<info added on 2025-04-13T13:47:24.066Z>
+## Additional PRD Implementation References
+
+### API Structure & Configuration
+- From PRD p.26-27: The FastAPI app should define a POST `/parse_pdf` endpoint that accepts PDF file uploads and returns JSON output
+- Use Pydantic BaseSettings to handle configuration from environment variables including:
+  - `DEBUG_MODE`: Boolean flag for development features
+  - `ALLOWED_ORIGINS`: List of origins for CORS configuration
+  - `LOG_LEVEL`: Configurable logging level (default to "INFO")
+
+### Integration Requirements
+- When configuring CORS, ensure headers include:
+  - `Access-Control-Allow-Origin`
+  - `Access-Control-Allow-Credentials`
+  - `Access-Control-Allow-Methods`
+  - `Access-Control-Allow-Headers`
+- The `/version` endpoint should return a JSON object with at least:
+  ```json
+  {
+    "version": "0.1.0",
+    "commit": "current-git-commit-hash",
+    "api_version": "v1"
+  }
+  ```
+
+### Server Configuration
+- For Uvicorn configuration, consider:
+  - Multiple workers for CPU-bound PDF parsing operations
+  - Configure workers via environment variable (e.g., `WORKERS_COUNT`)
+  - Default to `workers=2` for basic deployment
+- From PRD p.46-47: PDF parsing is CPU-heavy, so multiple workers are recommended for production
+
+### Testing Considerations
+- Include edge case tests for the health endpoint under load
+- Test CORS configuration with mock requests from different origins
+</info added on 2025-04-13T13:47:24.066Z>
+
+<info added on 2025-04-13T20:40:29.965Z>
+<info added on 2025-04-14T09:15:32.104Z>
+## Project Structure Implementation Details
+
+### Directory Structure
+Implement the following directory structure:
+```
+docling-pdf-parser/
+├── app/
+│   ├── __init__.py
+│   ├── main.py           # Application entry point
+│   ├── config.py         # Configuration settings
+│   ├── models.py         # Pydantic models
+│   ├── pipelines.py      # Document processing logic
+│   ├── api/              # API routes package
+│   │   ├── __init__.py
+│   │   ├── health.py     # Health/version endpoints
+│   │   └── pdf.py        # PDF processing endpoints
+│   └── utils/            # Utility functions
+│       └── __init__.py
+├── tests/                # Test directory
+│   └── ...
+└── api_service.py        # Entry point wrapper (as required by PRD)
+```
+
+### Implementation Examples
+
+#### 1. `app/config.py`
+```python
+from pydantic import BaseSettings, Field
+from typing import List, Optional
+import os
+
+class Settings(BaseSettings):
+    APP_NAME: str = "docling-pdf-parser"
+    APP_VERSION: str = "0.1.0"
+    API_VERSION: str = "v1"
+    DEBUG_MODE: bool = Field(False, env="DEBUG_MODE")
+    ALLOWED_ORIGINS: List[str] = Field(
+        ["http://localhost:3000", "https://docling.org"], 
+        env="ALLOWED_ORIGINS"
+    )
+    LOG_LEVEL: str = Field("INFO", env="LOG_LEVEL")
+    WORKERS_COUNT: int = Field(2, env="WORKERS_COUNT")
+    
+    # Get git commit hash if available
+    @property
+    def commit_hash(self) -> Optional[str]:
+        return os.environ.get("GIT_COMMIT_HASH", None)
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+settings = Settings()
+```
+
+#### 2. `app/main.py`
+```python
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import logging
+
+from app.config import settings
+from app.api import health, pdf
+
+# Configure logging
+logging.basicConfig(
+    level=getattr(logging, settings.LOG_LEVEL),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+def create_application() -> FastAPI:
+    application = FastAPI(
+        title=settings.APP_NAME,
+        description="PDF parsing service for Docling",
+        version=settings.APP_VERSION,
+        debug=settings.DEBUG_MODE,
+    )
+    
+    # Configure CORS
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    # Include routers
+    application.include_router(health.router, tags=["Health"])
+    application.include_router(pdf.router, prefix=f"/{settings.API_VERSION}", tags=["PDF"])
+    
+    logger.info(f"Application {settings.APP_NAME} initialized")
+    return application
+
+app = create_application()
+```
+
+#### 3. `app/api/health.py`
+```python
+from fastapi import APIRouter, status
+from pydantic import BaseModel
+from app.config import settings
+
+router = APIRouter()
+
+class HealthResponse(BaseModel):
+    status: str = "ok"
+
+class VersionResponse(BaseModel):
+    version: str
+    api_version: str
+    commit: str = None
+
+@router.get("/health", response_model=HealthResponse, status_code=status.HTTP_200_OK)
+async def health_check():
+    """Health check endpoint to verify service is running"""
+    return HealthResponse()
+
+@router.get("/version", response_model=VersionResponse, status_code=status.HTTP_200_OK)
+async def version():
+    """Return application version information"""
+    return VersionResponse(
+        version=settings.APP_VERSION,
+        api_version=settings.API_VERSION,
+        commit=settings.commit_hash
+    )
+```
+
+#### 4. `api_service.py` (Entry point wrapper)
+```python
+import uvicorn
+from app.main import app
+from app.config import settings
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        workers=settings.WORKERS_COUNT,
+        reload=settings.DEBUG_MODE,
+        log_level=settings.LOG_LEVEL.lower(),
+    )
+```
+
+### APIRouter Pattern Benefits
+- **Modularity**: Each router handles a specific domain of functionality
+- **Maintainability**: Easier to maintain and extend with clear separation of concerns
+- **Testing**: Facilitates isolated testing of API endpoints
+- **Versioning**: Simplifies API versioning through router prefixes
+
+### Middleware Configuration
+Add request logging middleware for debugging:
+```python
+@app.middleware("http")
+async def log_requests(request, call_next):
+    if settings.DEBUG_MODE:
+        logger.debug(f"Request: {request.method} {request.url}")
+    response = await call_next(request)
+    return response
+```
+
+### Testing Approach
+For the TestClient setup:
+```python
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+
+def test_health_endpoint():
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+def test_version_endpoint():
+    response = client.get("/version")
+    assert response.status_code == 200
+    data = response.json()
+    assert "version" in data
+    assert "api_version" in data
+```
+</info added on 2025-04-14T09:15:32.104Z>
+</info added on 2025-04-13T20:40:29.965Z>
+
+## 2. Implement Pydantic models and validation schemas [done]
+### Dependencies: 7.1
+### Description: Define Pydantic models for request/response validation, including models for PDF parsing requests and responses that align with docling-serve conventions.
+### Details:
+1. Create Pydantic models within api_service.py or in a separate models.py file
+2. Implement request models:
+   - `ParseRequest` model for parsing parameters
+   - File validation parameters (allowed extensions, max size)
+   - Optional processing parameters
+3. Implement response models:
+   - `ParseResponse` model for successful parsing results
+   - `ErrorResponse` model for standardized error responses
+   - `HealthResponse` and `VersionResponse` models
+4. Add field validators using Pydantic's validator decorators to ensure data integrity
+5. Implement custom error types and messages
+6. Create example instances for documentation
+7. Write unit tests for schema validation
+8. Ensure all models have proper docstrings and type hints
+9. Add JSON serialization/deserialization methods where needed
+10. Research docling-serve API conventions and align models accordingly
+
+<info added on 2025-04-13T13:47:49.745Z>
+## Additional Implementation Details for Pydantic Models
+
+### Request/Response Model Implementation
+
+1. **Health and Version Endpoints**:
+   ```python
+   class HealthResponse(BaseModel):
+       status: Literal["ok"] = "ok"
+       timestamp: datetime = Field(default_factory=datetime.now)
+   
+   class VersionResponse(BaseModel):
+       version: str
+       build_date: Optional[datetime] = None
+       commit_hash: Optional[str] = None
+   ```
+
+2. **Document Schema Alignment**:
+   ```python
+   class DocumentJSONSchema(BaseModel):
+       symbols: str  # Full text content
+       metadata: Dict[str, Any]
+       pages: List[PageSchema]
+       # Additional fields as per docling-core's DoclingDocument
+   ```
+
+3. **Error Response Implementation**:
+   ```python
+   class ErrorDetail(BaseModel):
+       loc: Optional[List[Union[str, int]]] = None
+       msg: str
+       type: str
+
+   class ErrorResponse(BaseModel):
+       detail: Union[List[ErrorDetail], str]
+       status_code: int = 400
+   ```
+
+4. **Validation with docling-core**:
+   ```python
+   def validate_with_docling_core(data: Dict[str, Any]) -> bool:
+       try:
+           from docling_core.types import DoclingDocument
+           DoclingDocument.model_validate(data)
+           return True
+       except Exception as e:
+           logger.error(f"Validation against DoclingDocument failed: {e}")
+           return False
+   ```
+
+5. **Custom Error Handling**:
+   ```python
+   class PDFParsingError(Exception):
+       def __init__(self, message: str, status_code: int = 400):
+           self.message = message
+           self.status_code = status_code
+           super().__init__(self.message)
+   ```
+
+6. **File Validation**:
+   ```python
+   class FileValidationParams(BaseModel):
+       allowed_extensions: List[str] = ["pdf"]
+       max_size_bytes: int = 10 * 1024 * 1024  # 10MB default
+       
+       @validator("max_size_bytes")
+       def validate_max_size(cls, v):
+           if v <= 0:
+               raise ValueError("File size limit must be positive")
+           return v
+   ```
+
+7. **Parse Request with Batch Support**:
+   ```python
+   class ParseRequest(BaseModel):
+       file_validation: FileValidationParams = Field(default_factory=FileValidationParams)
+       batch_processing: bool = False
+       continue_on_error: bool = False
+       processing_options: Dict[str, Any] = Field(default_factory=dict)
+   ```
+</info added on 2025-04-13T13:47:49.745Z>
+
+<info added on 2025-04-13T20:41:00.870Z>
+<info added on 2025-04-14T09:15:23.456Z>
+## URL-based and File-based Request Models
+
+1. **URL-based Document Conversion**:
+   ```python
+   class ConvertURLRequest(BaseModel):
+       url: HttpUrl
+       conversion_options: Optional[Dict[str, Any]] = Field(default_factory=dict)
+       
+       @validator('url')
+       def validate_url(cls, v):
+           allowed_schemes = ['http', 'https']
+           if v.scheme not in allowed_schemes:
+               raise ValueError(f"URL scheme must be one of {allowed_schemes}")
+           return v
+   ```
+
+2. **File Upload Handling**:
+   ```python
+   # For file uploads, use FastAPI's UploadFile directly in endpoint definitions
+   # Example endpoint signature:
+   # async def convert_file(file: UploadFile, options: Optional[ConversionOptions] = None):
+   #     ...
+   
+   # Helper function for file validation
+   async def validate_upload_file(file: UploadFile, params: FileValidationParams) -> None:
+       extension = file.filename.split('.')[-1].lower() if file.filename else ""
+       if extension not in params.allowed_extensions:
+           raise ValueError(f"File extension '{extension}' not allowed. Allowed: {params.allowed_extensions}")
+       
+       # Check file size
+       content = await file.read()
+       await file.seek(0)  # Reset file position after reading
+       if len(content) > params.max_size_bytes:
+           raise ValueError(f"File size exceeds maximum allowed size of {params.max_size_bytes} bytes")
+   ```
+
+## Conversion Options Model
+
+```python
+class ConversionOptions(BaseModel):
+    perform_ocr: bool = True
+    ocr_language: str = "eng"
+    extract_layout: bool = True
+    extract_tables: bool = True
+    extract_images: bool = False
+    confidence_threshold: float = Field(0.8, ge=0.0, le=1.0)
+    timeout_seconds: int = Field(300, ge=10, le=1800)
+    
+    @validator('ocr_language')
+    def validate_language_code(cls, v):
+        # Basic validation for language codes
+        if not re.match(r'^[a-z]{3}$', v):
+            raise ValueError("OCR language must be a 3-letter ISO language code")
+        return v
+```
+
+## Enhanced Response Models
+
+```python
+class ProcessingMetadata(BaseModel):
+    processing_time_ms: int
+    page_count: int
+    ocr_performed: bool
+    ocr_language: Optional[str] = None
+    extraction_date: datetime = Field(default_factory=datetime.now)
+    docling_version: str
+
+class DocumentConversionResult(BaseModel):
+    document_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    content: DocumentJSONSchema
+    metadata: ProcessingMetadata
+    warnings: List[str] = Field(default_factory=list)
+
+class BatchConversionResponse(BaseModel):
+    results: List[DocumentConversionResult]
+    failed_items: List[Dict[str, Any]] = Field(default_factory=list)
+    total_processing_time_ms: int
+```
+
+## Detailed Error Response Models
+
+```python
+class ErrorLocation(BaseModel):
+    file: Optional[str] = None
+    page: Optional[int] = None
+    component: Optional[str] = None
+
+class DetailedErrorResponse(BaseModel):
+    error_code: str
+    message: str
+    location: Optional[ErrorLocation] = None
+    details: Optional[Dict[str, Any]] = None
+    traceback: Optional[str] = None
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "error_code": "PARSING_ERROR",
+                "message": "Failed to parse PDF document",
+                "location": {"file": "document.pdf", "page": 2},
+                "details": {"reason": "Corrupted PDF structure"}
+            }
+        }
+```
+
+## Serialization/Deserialization Methods
+
+```python
+class DocumentJSONSchema(BaseModel):
+    # ... existing fields ...
+    
+    @classmethod
+    def from_docling_document(cls, doc: Any) -> "DocumentJSONSchema":
+        """Convert a docling-core Document to this schema"""
+        return cls(
+            symbols=doc.symbols,
+            metadata=doc.metadata,
+            pages=[PageSchema.from_docling_page(p) for p in doc.pages]
+        )
+    
+    def to_docling_document(self) -> Dict[str, Any]:
+        """Convert this schema to a format compatible with docling-core"""
+        return self.model_dump()
+    
+    def to_text(self) -> str:
+        """Extract plain text from the document"""
+        return self.symbols
+```
+
+## Example Models for Documentation
+
+```python
+class Config:
+    schema_extra = {
+        "example": {
+            "url": "https://example.com/document.pdf",
+            "conversion_options": {
+                "perform_ocr": True,
+                "ocr_language": "eng",
+                "extract_tables": True
+            }
+        }
+    }
+
+# Add to ConvertURLRequest
+ConvertURLRequest.Config = Config
+
+# Example for DocumentConversionResult
+class ResultConfig:
+    schema_extra = {
+        "example": {
+            "document_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+            "content": {
+                "symbols": "Sample document text...",
+                "metadata": {"title": "Sample Document"},
+                "pages": [{"page_number": 1, "width": 612, "height": 792}]
+            },
+            "metadata": {
+                "processing_time_ms": 1250,
+                "page_count": 3,
+                "ocr_performed": True,
+                "ocr_language": "eng",
+                "extraction_date": "2025-04-14T09:15:23.456Z",
+                "docling_version": "1.0.0"
+            }
+        }
+    }
+
+DocumentConversionResult.Config = ResultConfig
+```
+</info added on 2025-04-14T09:15:23.456Z>
+</info added on 2025-04-13T20:41:00.870Z>
+
+## 3. Implement file upload handling and security measures [done]
+### Dependencies: 7.1, 7.2
+### Description: Create the file upload functionality with proper validation, security measures, and temporary storage as specified in the PRD.
+### Details:
+1. Implement file upload handling using FastAPI's `UploadFile` class
+2. Add file validation for:
+   - MIME type verification (application/pdf)
+   - File size limits as specified in the PRD security section
+   - Page count limits to prevent DoS attacks
+   - File extension validation
+3. Create a secure temporary storage mechanism for uploaded files
+4. Implement automatic cleanup of temporary files after processing
+5. Add file metadata extraction (size, name, creation date)
+6. Implement error handling for corrupted or malicious files
+7. Create utility functions for file path management
+8. Write unit tests for file upload and validation
+9. Test with various PDF files (valid, invalid, and potentially malicious)
+10. Implement dependency checking to ensure all dependencies are up to date
+
+<info added on 2025-04-13T13:48:15.351Z>
+Here's the additional information to add to the subtask:
+
+```
+## PRD Implementation References:
+
+### File Upload Endpoint Example:
+```python
+@app.post('/parse', response_model=DocumentJSONSchema)
+async def parse_document(file: UploadFile = File(...)):
+    # read file contents
+    pdf_bytes = await file.read()
+    # Option 1: Write to temp file
+    with open('temp.pdf', 'wb') as f:
+        f.write(pdf_bytes)
+    doc = parser.parse('temp.pdf')
+    # Option 2: Use BytesIO stream if supported
+    # doc = parser.parse(io.BytesIO(pdf_bytes))
+    return doc.to_json()
+```
+
+### Security Implementation Notes:
+- Set file size limit to prevent DoS attacks (FastAPI config: `app = FastAPI(max_upload_size=10_000_000)` for 10MB limit)
+- Implement page count validation (max 500 pages by default per PRD)
+- Use Python's `magic` library for MIME type verification beyond extension checking
+- Consider using `tempfile` module for secure temporary storage with automatic cleanup
+
+### Performance Considerations:
+- Optimize for PRD target: parsing 10-page scientific paper in under 2 seconds
+- Implement memory usage monitoring for file processing
+- Use streaming processing where possible to minimize memory footprint
+
+### Error Handling Strategy:
+- Implement specific exception handling for common file issues:
+  - Corrupted PDF structure: Return 400 with detailed message
+  - Password-protected files: Return 400 with "Protected file not supported" message
+  - Oversized files: Return 413 (Payload Too Large)
+  - Malformed content: Return 422 (Unprocessable Entity)
+```
+</info added on 2025-04-13T13:48:15.351Z>
+
+## 4. Implement PDF parsing endpoint and service layer [done]
+### Dependencies: 7.2, 7.3
+### Description: Create the core /parse_pdf endpoint that processes uploaded PDF files using the PaperMage-Docling implementation, following docling-serve conventions.
+### Details:
+1. Implement the core parsing functionality that interfaces with PaperMage-Docling
+2. Create the `/parse_pdf` endpoint that accepts PDF uploads (following docling-serve naming conventions)
+3. Research docling-serve's API routes and align with their conventions
+4. Add request validation using the Pydantic models
+5. Implement proper response formatting with standardized structure
+6. Add error handling for parsing failures
+7. Implement asynchronous processing for better performance
+8. Add detailed logging throughout the parsing process
+9. Write unit and integration tests for the parsing endpoint
+10. Implement proper dependency injection for the parser service
+11. Ensure the endpoint can handle large jobs by integrating with docling-serve's worker distribution system if needed
+
+<info added on 2025-04-13T13:48:37.771Z>
+## Key PRD References:
+- **Parse Endpoint**: From "Implementation Summaries" (p.26-27):
+  - "api_service.py: This file sets up the FastAPI application for serving the parser as a web service."
+  - "It will likely create a FastAPI app, define an endpoint (e.g., POST /parse_pdf) which accepts a PDF file upload and returns the JSON output."
+  - Complete example of the endpoint implementation:
+    ```python
+    @app.post('/parse', response_model=DocumentJSONSchema)
+    async def parse_document(file: UploadFile = File(...)):
+        # read file contents
+        pdf_bytes = await file.read()
+        # write to a temp file or pass bytes to parser (docling-parse might accept stream)
+        with open('temp.pdf', 'wb') as f:
+            f.write(pdf_bytes)
+        doc = parser.parse('temp.pdf')
+        return doc.to_json()
+    ```
+
+- **Integration with Parser**: From "Implementation Summaries" (p.26-27):
+  - "Implementation-wise, it will instantiate the DoclingParser and maybe keep it around (though stateless is fine since DoclingParser has no heavy state)."
+  - "We will ensure that this is similar to docling-serve's container (docling-serve might use gunicorn/uvicorn too). Users can thus deploy this container to serve the parsing API."
+
+- **Docling-serve Compatibility**: From "Docling-serve Integration" (p.19):
+  - "If needed, we will align with docling-serve's API routes (for example, docling-serve might have a route /convert where you POST a document and get JSON). We can follow that convention so that clients/tools built for Docling can use our service interchangeably."
+  - "If large jobs need to be handled, we could integrate Starlette BackgroundTasks or Celery in future. For now, the architecture handles requests synchronously within FastAPI workers."
+
+- **Documentation**: From "FastAPI Uvicorn Details" (p.47):
+  - "FastAPI's robustness covers concurrency and error handling, which we'll utilize"
+  - "For the API service, "hitting http://localhost:8000/docs will show the Swagger UI (FastAPI auto docs), where one can test the /parse endpoint with a PDF."
+</info added on 2025-04-13T13:48:37.771Z>
+
+<info added on 2025-04-13T20:41:40.478Z>
+<info added on 2025-04-14T09:23:15.000Z>
+## Expanded Endpoint Implementation
+
+### Dual Endpoint Approach
+Implement both URL-based and file-based document conversion endpoints:
+```python
+@router.post("/convert/url", response_model=ConvertResponse)
+async def convert_from_url(request: ConvertURLRequest, background_tasks: BackgroundTasks):
+    job_id = str(uuid.uuid4())
+    background_tasks.add_task(pipelines.process_url_documents, request.urls, job_id)
+    return {"job_id": job_id, "status": "processing"}
+
+@router.post("/convert/file", response_model=ConvertResponse)
+async def convert_from_file(background_tasks: BackgroundTasks, files: list[UploadFile] = File(...)):
+    job_id = str(uuid.uuid4())
+    background_tasks.add_task(pipelines.process_file_documents, files, job_id)
+    return {"job_id": job_id, "status": "processing"}
+
+@router.get("/job/{job_id}", response_model=JobStatusResponse)
+async def get_job_status(job_id: str):
+    status = job_store.get_job_status(job_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return status
+```
+
+### Service Layer in `pipelines.py`
+```python
+class DocumentProcessor:
+    def __init__(self, parser: DoclingParser):
+        self.parser = parser
+        self.temp_dir = Path("./temp")
+        self.temp_dir.mkdir(exist_ok=True)
+        
+    async def process_url_documents(self, urls: List[str], job_id: str) -> None:
+        results = []
+        for url in urls:
+            try:
+                # Download file from URL
+                temp_file = self.temp_dir / f"{uuid.uuid4()}.pdf"
+                await self._download_file(url, temp_file)
+                
+                # Process the document
+                doc = self.parser.parse(str(temp_file))
+                results.append({"url": url, "document": doc.to_json(), "status": "success"})
+                
+                # Clean up
+                temp_file.unlink(missing_ok=True)
+            except Exception as e:
+                results.append({"url": url, "error": str(e), "status": "failed"})
+        
+        # Store results
+        job_store.update_job(job_id, {"results": results, "status": "completed"})
+    
+    async def process_file_documents(self, files: List[UploadFile], job_id: str) -> None:
+        results = []
+        for file in files:
+            try:
+                # Validate file
+                if not self._validate_file(file):
+                    results.append({"filename": file.filename, "error": "Invalid file format", "status": "failed"})
+                    continue
+                
+                # Save to temp file
+                temp_file = self.temp_dir / f"{uuid.uuid4()}.pdf"
+                content = await file.read()
+                temp_file.write_bytes(content)
+                
+                # Process the document
+                doc = self.parser.parse(str(temp_file))
+                results.append({"filename": file.filename, "document": doc.to_json(), "status": "success"})
+                
+                # Clean up
+                temp_file.unlink(missing_ok=True)
+            except Exception as e:
+                results.append({"filename": file.filename, "error": str(e), "status": "failed"})
+        
+        # Store results
+        job_store.update_job(job_id, {"results": results, "status": "completed"})
+    
+    def _validate_file(self, file: UploadFile) -> bool:
+        # Check file size (e.g., limit to 20MB)
+        if file.size > 20 * 1024 * 1024:
+            return False
+        
+        # Check file extension
+        allowed_extensions = ['.pdf', '.PDF']
+        return any(file.filename.endswith(ext) for ext in allowed_extensions)
+    
+    async def _download_file(self, url: str, dest_path: Path) -> None:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status != 200:
+                    raise Exception(f"Failed to download file: HTTP {response.status}")
+                content = await response.read()
+                dest_path.write_bytes(content)
+```
+
+### Error Handling for Document Processing
+Implement comprehensive error handling for common PDF issues:
+
+```python
+class DocumentProcessingError(Exception):
+    """Base exception for document processing errors"""
+    pass
+
+class PasswordProtectedError(DocumentProcessingError):
+    """Exception raised when PDF is password protected"""
+    pass
+
+class CorruptedPDFError(DocumentProcessingError):
+    """Exception raised when PDF structure is corrupted"""
+    pass
+
+class UnsupportedFormatError(DocumentProcessingError):
+    """Exception raised when document format is not supported"""
+    pass
+
+# In the parser wrapper:
+def parse_with_error_handling(self, file_path: str) -> Document:
+    try:
+        return self.parser.parse(file_path)
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "password" in error_msg:
+            raise PasswordProtectedError("Document is password protected")
+        elif "corrupted" in error_msg or "invalid pdf" in error_msg:
+            raise CorruptedPDFError("Document structure is corrupted")
+        elif "unsupported" in error_msg:
+            raise UnsupportedFormatError("Document format is not supported")
+        else:
+            raise DocumentProcessingError(f"Failed to parse document: {e}")
+```
+
+### Job Store Implementation
+```python
+class JobStore:
+    def __init__(self):
+        self.jobs = {}  # In production, use Redis or another persistent store
+    
+    def create_job(self, job_id: str) -> None:
+        self.jobs[job_id] = {"status": "processing", "created_at": datetime.now().isoformat()}
+    
+    def update_job(self, job_id: str, data: dict) -> None:
+        if job_id in self.jobs:
+            self.jobs[job_id].update(data)
+            self.jobs[job_id]["updated_at"] = datetime.now().isoformat()
+    
+    def get_job_status(self, job_id: str) -> Optional[dict]:
+        return self.jobs.get(job_id)
+
+job_store = JobStore()
+```
+
+### Celery Integration Outline
+```python
+# celery_config.py
+from celery import Celery
+
+celery_app = Celery(
+    "papermage_tasks",
+    broker="redis://localhost:6379/0",
+    backend="redis://localhost:6379/0"
+)
+
+# tasks.py
+from celery_config import celery_app
+from pipelines import DocumentProcessor
+
+@celery_app.task
+def process_url_document(url: str, job_id: str):
+    processor = DocumentProcessor()
+    return processor.process_url_document(url, job_id)
+
+@celery_app.task
+def process_file_document(file_path: str, original_filename: str, job_id: str):
+    processor = DocumentProcessor()
+    return processor.process_file_document(file_path, original_filename, job_id)
+```
+
+### Pydantic Models for Request/Response
+```python
+class ConvertURLRequest(BaseModel):
+    urls: List[str]
+    
+    @validator('urls')
+    def validate_urls(cls, urls):
+        if not urls:
+            raise ValueError("At least one URL must be provided")
+        for url in urls:
+            if not url.startswith(('http://', 'https://')):
+                raise ValueError(f"Invalid URL format: {url}")
+        return urls
+
+class DocumentResult(BaseModel):
+    status: Literal["success", "failed"]
+    document: Optional[Dict] = None
+    error: Optional[str] = None
+    filename: Optional[str] = None
+    url: Optional[str] = None
+
+class ConvertResponse(BaseModel):
+    job_id: str
+    status: Literal["processing", "completed", "failed"]
+    results: Optional[List[DocumentResult]] = None
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    status: Literal["processing", "completed", "failed"]
+    created_at: str
+    updated_at: Optional[str] = None
+    results: Optional[List[DocumentResult]] = None
+```
+</info added on 2025-04-14T09:23:15.000Z>
+</info added on 2025-04-13T20:41:40.478Z>
+
+## 5. Implement security, rate limiting, and finalize API [done]
+### Dependencies: 7.1, 7.2, 7.3, 7.4
+### Description: Add security features, rate limiting, comprehensive error handling, and finalize the API for production use and integration with docling-serve.
+### Details:
+1. Implement rate limiting middleware using an appropriate algorithm (e.g., token bucket)
+2. Add configurable limits for:
+   - Requests per minute per client
+   - Concurrent processing limits
+   - Maximum file size restrictions as specified in the PRD
+   - Maximum page count restrictions
+3. Implement proper HTTP status codes and error responses
+4. Add request ID tracking for better debugging
+5. Enhance logging with structured logs and request context
+6. Implement comprehensive exception handling
+7. Add API documentation using FastAPI's automatic docs
+8. Create custom OpenAPI schema with examples
+9. Implement proper shutdown handlers for graceful termination
+10. Write load tests to verify performance under stress
+11. Finalize Uvicorn production configuration
+12. Create deployment documentation for integration with docling-serve
+13. Implement security scanning for dependencies to avoid known vulnerabilities
+
+<info added on 2025-04-13T13:49:04.297Z>
+## Implementation Notes for Security, Rate Limiting, and API Finalization
+
+### Security Implementation Details
+- Implement file validation that checks both MIME type and file signatures to prevent malicious files disguised as PDFs
+- Use Python's `pdfminer.six` security features to disable JavaScript execution and external references in PDFs
+- Set up a sandbox environment for PDF parsing using containerization techniques
+- Implement timeout mechanisms for PDF parsing operations (default: 30 seconds per document)
+- Add file size limits as specified in PRD (recommended: 10MB default, configurable via environment)
+- Add page count limits as specified in PRD (recommended: 100 pages default, configurable via environment)
+
+### Rate Limiting Implementation
+- Use `slowapi` or FastAPI's built-in middleware with Redis backend for distributed rate limiting
+- Implement tiered rate limiting:
+  - 60 requests/minute for anonymous users
+  - 300 requests/minute for authenticated users
+  - Configurable via environment variables
+- Add CPU usage monitoring to dynamically adjust worker count based on system load
+- Implement backpressure mechanisms to prevent system overload during peak usage
+
+### Logging and Monitoring Specifics
+- Implement structured JSON logging with the following fields:
+  - `request_id`: UUID for request tracking
+  - `client_id`: Client identifier (if authenticated)
+  - `document_size`: Size of uploaded PDF in bytes
+  - `page_count`: Number of pages in the document
+  - `processing_time_ms`: Time taken to process the request
+  - `error_type`: Classification of error (if any)
+- Set up log rotation to prevent disk space issues
+- Add Prometheus metrics for key performance indicators:
+  - Request latency percentiles (p50, p95, p99)
+  - Error rates by type
+  - Resource utilization (memory, CPU)
+
+### Deployment Integration with docling-serve
+- Create health check endpoints (`/health` and `/readiness`) for Kubernetes/Docker integration
+- Document environment variable configuration to match docling-serve conventions
+- Implement graceful shutdown with a 30-second timeout to complete in-flight requests
+- Add Docker Compose configuration for local testing with docling-serve
+
+### Error Handling Enhancements
+- Implement custom exception classes for different error scenarios:
+  - `PDFParsingError`: For issues with PDF structure or content
+  - `RateLimitExceededError`: For rate limit violations
+  - `ResourceExhaustedError`: For system resource constraints
+  - `ValidationError`: For invalid input parameters
+- Map exceptions to appropriate HTTP status codes (400, 413, 429, 503)
+- Include troubleshooting information in error responses for easier debugging
+</info added on 2025-04-13T13:49:04.297Z>
+
+<info added on 2025-04-13T20:42:08.602Z>
+## Scalability and Production Deployment Enhancements
+
+### Distributed Processing Architecture
+- Implement Celery task queue integration with Redis backend:
+  ```python
+  from celery import Celery
+  
+  celery_app = Celery(
+      "pdf_processor",
+      broker=os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+      backend=os.getenv("REDIS_URL", "redis://localhost:6379/0")
+  )
+  ```
+- Add asynchronous processing endpoint that returns a task ID for later result retrieval
+- Implement worker auto-scaling based on queue length metrics
+- Create dedicated task status endpoint (`/api/v1/tasks/{task_id}`) for checking processing status
+
+### Uvicorn Worker Configuration
+- Configure Uvicorn with Gunicorn for production deployments:
+  ```bash
+  gunicorn -w $(nproc) -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+  ```
+- Implement worker pre-loading of ML models to reduce cold start times
+- Add worker lifecycle hooks for proper resource cleanup
+
+### Optional Gradio UI Integration
+- Implement conditional Gradio UI mounting based on environment variable:
+  ```python
+  if os.getenv("ENABLE_UI", "false").lower() == "true":
+      import gradio as gr
+      
+      def process_pdf(file):
+          # Process file using the API
+          return results
+      
+      ui = gr.Interface(
+          fn=process_pdf,
+          inputs=gr.File(label="Upload PDF"),
+          outputs=gr.JSON(label="Extracted Data"),
+          title="PDF Processing Interface",
+          description="Upload a PDF to extract structured data"
+      )
+      
+      # Mount Gradio app to FastAPI
+      app.mount("/ui", gr.routes.App.create_app(ui))
+  ```
+- Add demo mode with sample PDFs for testing
+- Include UI-specific rate limiting to prevent abuse
+
+### Configuration Management System
+- Implement layered configuration with environment-specific overrides:
+  ```python
+  class Settings(BaseSettings):
+      app_name: str = "pdf-processor"
+      debug: bool = False
+      allowed_origins: List[str] = ["http://localhost:3000"]
+      max_file_size_mb: int = 10
+      max_pages: int = 100
+      rate_limit_anon: int = 60
+      rate_limit_auth: int = 300
+      enable_ui: bool = False
+      
+      class Config:
+          env_file = ".env"
+          env_file_encoding = "utf-8"
+  ```
+- Add configuration validation on startup
+- Create separate configuration profiles for development, testing, and production
+
+### Health Monitoring System
+- Implement detailed health check endpoints:
+  - `/health/liveness`: Basic server availability check
+  - `/health/readiness`: Checks all dependencies (Redis, database, etc.)
+  - `/health/metrics`: Prometheus-compatible metrics endpoint
+- Add system resource monitoring with periodic logging:
+  ```python
+  @app.on_event("startup")
+  async def start_resource_monitor():
+      asyncio.create_task(monitor_system_resources())
+      
+  async def monitor_system_resources():
+      while True:
+          metrics = {
+              "cpu_percent": psutil.cpu_percent(),
+              "memory_percent": psutil.virtual_memory().percent,
+              "disk_percent": psutil.disk_usage("/").percent,
+              "open_files": len(psutil.Process().open_files()),
+              "active_threads": len(psutil.Process().threads()),
+          }
+          logger.info("System resources", extra=metrics)
+          await asyncio.sleep(60)
+  ```
+
+### Docker Production Configuration
+- Create multi-stage Dockerfile to minimize image size:
+  ```dockerfile
+  FROM python:3.9-slim as builder
+  WORKDIR /app
+  COPY requirements.txt .
+  RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
+  
+  FROM python:3.9-slim
+  WORKDIR /app
+  COPY --from=builder /app/wheels /wheels
+  RUN pip install --no-cache /wheels/*
+  COPY . .
+  
+  HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health/liveness || exit 1
+    
+  CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "app.main:app"]
+  ```
+- Include Docker Compose configuration for local development with all dependencies
+- Add container resource limits and requests for Kubernetes deployments
+</info added on 2025-04-13T20:42:08.602Z>
+
+## 6. Implement modular project structure and DocumentGateway [done]
+### Dependencies: 7.1
+### Description: Restructure the project to follow the modular layout described in the implementation guide and implement the DocumentGateway for PDF conversion.
+### Details:
+1. Restructure the project to follow the modular layout with:
+   - main.py: Entry point for the application
+   - models.py: Pydantic models for request/response validation
+   - pipelines.py: Processing pipelines for document conversion
+   - api/: Directory for API route definitions
+   - config.py: Configuration management
+2. Implement DocumentGateway class for PDF conversion in the FastAPI layer
+3. Create both synchronous and asynchronous processing options in the gateway
+4. Implement proper dependency injection for the gateway
+5. Add configuration for gateway initialization
+6. Create utility functions for gateway operations
+7. Implement error handling specific to the gateway
+8. Write unit tests for the gateway functionality
+9. Document the gateway API and usage patterns
+10. Ensure the gateway handles resource management properly
+
+## 7. Implement dedicated endpoints for URL and file uploads [done]
+### Dependencies: 7.2, 7.6
+### Description: Create separate endpoints for processing documents from URLs (/convert/url) and file uploads (/convert/file) as described in the implementation guide.
+### Details:
+1. Implement `/convert/url` endpoint that accepts URL inputs via POST request
+2. Create Pydantic model for URL validation and processing options
+3. Implement URL fetching with proper error handling and timeout configuration
+4. Add security validation for URL inputs (allowed domains, protocols, etc.)
+5. Implement `/convert/file` endpoint for file uploads
+6. Ensure both endpoints use the DocumentGateway for processing
+7. Implement consistent response formatting across both endpoints
+8. Add detailed logging for both URL and file processing
+9. Create comprehensive error handling for URL-specific issues (404, timeout, etc.)
+10. Write unit and integration tests for both endpoints
+11. Document both endpoints in the API documentation
+
+## 8. Implement background task processing [done]
+### Dependencies: 7.4, 7.6, 7.7
+### Description: Add support for background task processing for long-running conversions using BackgroundTasks or Celery as described in the implementation guide.
+### Details:
+1. Implement background task processing using FastAPI's BackgroundTasks
+2. Add option for Celery integration for more complex workloads
+3. Create task queue management for processing large documents
+4. Implement status tracking for background tasks
+5. Add endpoints for checking task status
+6. Implement result storage and retrieval for completed tasks
+7. Add timeout and error handling for background tasks
+8. Implement resource management for concurrent background tasks
+9. Create cleanup mechanisms for completed or failed tasks
+10. Write unit tests for background task processing
+11. Document background task usage and configuration
+
+## 9. Implement optional UI integration [done]
+### Dependencies: 7.7, 7.8
+### Description: Add optional UI integration with Gradio (or alternatives) for testing purposes as described in the implementation guide.
+### Details:
+1. Implement optional UI integration using Gradio
+2. Create simple interface for uploading files and viewing results
+3. Add URL input option in the UI
+4. Implement result visualization for processed documents
+5. Add configuration option to enable/disable the UI
+6. Ensure the UI works with both synchronous and background processing
+7. Implement error display in the UI
+8. Add basic styling and usability improvements
+9. Create documentation for using the UI
+10. Ensure the UI is properly isolated from production endpoints
+
+## 10. Implement comprehensive configuration, logging, and monitoring [done]
+### Dependencies: 7.1, 7.6
+### Description: Add detailed configuration management, logging, and monitoring capabilities as described in the implementation guide.
+### Details:
+1. Implement comprehensive configuration management using Pydantic BaseSettings
+2. Add support for environment variables, configuration files, and command-line arguments
+3. Implement structured logging with configurable levels and formats
+4. Add request context to logs for better traceability
+5. Implement performance monitoring for document processing
+6. Add resource usage tracking (memory, CPU, disk)
+7. Implement metrics collection for key performance indicators
+8. Add health check endpoints with detailed status information
+9. Implement alerting mechanisms for critical issues
+10. Create documentation for configuration options and monitoring setup
+

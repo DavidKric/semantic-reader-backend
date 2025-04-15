@@ -1,0 +1,151 @@
+# Task ID: 2
+# Title: Implement DoclingPdfParser
+# Status: done
+# Dependencies: 1
+# Priority: high
+# Description: Create the core PDF parsing module that uses docling-parse to extract text and layout information from PDFs, as specified in the PRD on page 15 under 'Functional Requirements'. Use Docling's native data structures internally and convert to PaperMage format only at the API/output level.
+# Details:
+1. Create parsers/docling_pdf_parser.py (as specified in PRD page 22) that wraps docling-parse functionality
+2. Implement DoclingParser class with parse() method that takes a PDF path and returns a Document object
+3. Follow the pseudocode implementation from PRD pages 24-25: parse PDF using Docling, convert to Document, build base layers, apply RTL fixes
+4. CRITICAL: Use Docling's native data structures internally throughout the entire parsing process - do not convert to PaperMage format during any internal operations
+5. Create a dedicated converter module (converters/docling_to_papermage.py) that is solely responsible for transforming Docling's native structures to PaperMage's multilayer Document representation (PRD page 11) only at the API/output level
+6. Add an output_format parameter to the parser's parse() method to support both Docling native and PaperMage formats, with 'docling' as the default
+7. Ensure all internal processing (including RTL handling, text extraction, and layout analysis) works directly with Docling's native data structures without any intermediate conversions
+8. Extract text content into symbols string, preserving reading order while maintaining Docling's internal representation
+9. Create base entity layers (pages, rows, tokens, words) from docling-parse output only when converting to PaperMage format via the converter module
+10. Preserve entity positional information using Box classes as specified on PRD page 15
+11. Add logging for parsing steps that clearly indicates when conversion to PaperMage format occurs (only at output)
+12. Implement to_json() method to serialize Document to PaperMage-compatible JSON format (PRD pages 16-17)
+13. Add from_json() method to deserialize JSON back to Document
+14. Thoroughly examine both Docling and PaperMage code repositories to ensure proper compatibility and implementation
+15. Focus on creating robust conversion logic in the dedicated converter module while keeping all internal processing in Docling's native format
+
+IMPORTANT: All internal processing (including RTL handling) must work directly with Docling's native data structures, not with PaperMage Document objects. Only convert to PaperMage format at the API/output level. Reference existing implementations in papermage_docling/document.py, papermage_docling/converters/docling_to_papermage.py, and papermage_docling/parsers/docling_parser.py that demonstrate the correct approach of:
+1) Using Docling's structures internally for all processing
+2) Creating a dedicated converter module to transform to PaperMage format only when needed
+3) Adding an output_format parameter to the parser's parse() method to support both formats, defaulting to Docling's native format
+4) Maintaining a clear separation between internal processing (Docling) and output formatting (PaperMage)
+
+# Test Strategy:
+Create unit tests in tests/testparsers/testdoclingpdfparser.py that verify:
+1. Basic PDF parsing works (using a simple test PDF)
+2. Docling's native data structures are correctly maintained during internal processing with no premature conversion to PaperMage format
+3. Conversion to PaperMage format occurs only at the API/output level via the dedicated converter module
+4. Conversion to PaperMage format produces all expected layers (symbols, pages, rows, tokens) as described in PRD page 11
+5. Text content is correctly extracted while maintaining Docling's internal representation
+6. Coordinates and bounding boxes are properly preserved with required precision
+7. RTL text handling works correctly on Docling's native structures without intermediate conversion
+8. JSON serialization/deserialization works correctly according to PaperMage's implementation
+9. Test with various PDF layouts to ensure reading order is preserved in both Docling and PaperMage formats
+10. Verify that the output_format parameter correctly determines whether Docling native or PaperMage format is returned
+11. Benchmark performance differences between direct usage of Docling structures vs. converted PaperMage format
+12. Test utility functions for working with Docling's native structures directly
+13. Verify that no PaperMage-specific code or data structures are used during the internal parsing process
+14. Test that the converter module correctly handles all aspects of the transformation from Docling to PaperMage format
+
+# Subtasks:
+## 1. Create DoclingPdfParser class structure and basic setup [done]
+### Dependencies: None
+### Description: Set up the core parser class structure with necessary imports, initialization, and basic configuration options. This will establish the foundation for the PDF parsing functionality using Docling's native data structures.
+### Details:
+1. Create `parsers/docling_pdf_parser.py` file with proper imports from docling-parse and other required libraries.
+2. Implement the DoclingPdfParser class with constructor that accepts configuration parameters (e.g., OCR settings, language options).
+3. Add class-level documentation explaining the purpose and usage of the parser.
+4. Set up logging configuration for the parser module.
+5. Implement basic initialization that creates an instance of Docling's PDF parser.
+6. Add type hints and docstrings following the project's style guide.
+7. Create unit tests for the basic class initialization and configuration.
+8. Testing approach: Write tests that verify the parser initializes correctly with various configuration options.
+
+## 2. Implement core PDF parsing functionality using Docling's native structures [done]
+### Dependencies: 2.1
+### Description: Implement the parse() method that takes a PDF path and processes it using Docling's native data structures, maintaining all internal processing with Docling's formats.
+### Details:
+1. Implement the parse() method that accepts a PDF file path and optional parameters.
+2. Use Docling's PDF parser to extract text and layout information from the PDF.
+3. Process the extracted data while maintaining Docling's native data structures throughout.
+4. Add support for handling different PDF types (text-based, scanned with OCR).
+5. Implement RTL text handling directly within Docling's native structures.
+6. Add detailed logging for each parsing step.
+7. Implement error handling for common PDF parsing issues (corrupted files, password protection, etc.).
+8. Add an output_format parameter with 'docling' as the default option.
+9. Testing approach: Create tests with various PDF samples (simple text, complex layouts, RTL text) to verify parsing accuracy while maintaining Docling's native structures.
+
+## 3. Create dedicated converter module for Docling to PaperMage transformation [done]
+### Dependencies: 2.1
+### Description: Develop a separate converter module that transforms Docling's native data structures to PaperMage's multilayer Document representation only when needed at the API/output level.
+### Details:
+1. Create `converters/docling_to_papermage.py` file with necessary imports.
+2. Implement a DoclingToPaperMageConverter class with methods to convert between formats.
+3. Design conversion functions for each entity type (document, page, row, token, word).
+4. Ensure Box classes are used correctly to preserve positional information.
+5. Implement methods to handle the conversion of text content while preserving reading order.
+6. Add support for converting layout information (columns, paragraphs, etc.).
+7. Implement error handling for edge cases in the conversion process.
+8. Add detailed logging for the conversion steps.
+9. Testing approach: Create unit tests that verify correct conversion of various document structures from Docling to PaperMage format, with special attention to positional information and text ordering.
+
+<info added on 2025-04-13T16:20:47.778Z>
+The existing files `converters/document.py` and `converters/docling_to_papermage_converter.py` have already been implemented. The DoclingToPaperMageConverter class should be integrated with these existing modules. Specifically:
+
+1. Update imports to reference the existing `converters/document.py` for shared conversion utilities.
+2. Extend or modify the existing `converters/docling_to_papermage_converter.py` rather than creating a new file.
+3. Ensure compatibility with the conversion interfaces already defined in these files.
+4. Reuse any common conversion patterns or utilities from the existing implementation.
+5. Add new methods as needed while maintaining consistency with the established conversion architecture.
+</info added on 2025-04-13T16:20:47.778Z>
+
+## 4. Extend parse() method to support PaperMage output format [done]
+### Dependencies: 2.2, 2.3
+### Description: Enhance the parse() method to support outputting in PaperMage format by integrating the converter module, while ensuring all internal processing still uses Docling's native structures.
+### Details:
+1. Modify the parse() method to accept 'papermage' as an output_format option.
+2. Integrate the DoclingToPaperMageConverter to transform the output only at the final step.
+3. Ensure all internal processing (including RTL handling) continues to use Docling's native structures.
+4. Implement conditional logic to return either Docling native or PaperMage format based on the output_format parameter.
+5. Add documentation explaining the different output formats and their use cases.
+6. Optimize the conversion process to minimize performance impact.
+7. Add appropriate error handling for conversion failures.
+8. Testing approach: Create tests that verify both output formats work correctly with the same input, and that internal processing remains in Docling's native format regardless of output choice.
+
+## 5. Implement serialization methods for Document objects [done]
+### Dependencies: 2.3, 2.4
+### Description: Add to_json() and from_json() methods to serialize and deserialize Document objects in PaperMage-compatible JSON format, ensuring proper handling of all document components.
+### Details:
+1. Implement to_json() method that serializes a Document object to PaperMage-compatible JSON format as specified in the PRD.
+2. Ensure all entity layers (pages, rows, tokens, words) are properly serialized with their positional information.
+3. Implement from_json() method to deserialize JSON back to a Document object.
+4. Add validation to ensure the JSON structure matches the expected PaperMage format.
+5. Implement proper error handling for malformed JSON or missing required fields.
+6. Add support for handling special characters and Unicode in the serialization process.
+7. Optimize serialization for large documents to maintain performance.
+8. Testing approach: Create round-trip tests that serialize documents to JSON and back, verifying that all information is preserved correctly.
+
+## 6. Implement comprehensive testing and documentation [done]
+### Dependencies: 2.1, 2.2, 2.3, 2.4, 2.5
+### Description: Create thorough tests for the DoclingPdfParser and converter modules, along with comprehensive documentation for usage and integration.
+### Details:
+1. Implement integration tests that verify the end-to-end parsing process with various PDF types.
+2. Create tests for edge cases such as empty PDFs, PDFs with only images, and malformed PDFs.
+3. Test performance with large documents to ensure efficient processing.
+4. Implement tests for RTL text handling to verify correct processing and output.
+5. Create comprehensive documentation with usage examples for both Docling native and PaperMage output formats.
+6. Add API documentation for all public methods and classes.
+7. Create examples showing integration with other components of the system.
+8. Implement benchmarking tests to measure parsing performance.
+9. Testing approach: Use a diverse set of real-world PDFs to verify parsing accuracy, performance, and compatibility with both output formats.
+
+## 7. Verify strict separation between Docling internal processing and PaperMage output conversion [done]
+### Dependencies: 2.2, 2.3, 2.4
+### Description: Conduct a thorough code review and implement tests to ensure that Docling's native data structures are used exclusively for all internal processing, with conversion to PaperMage format occurring only at the API/output level.
+### Details:
+1. Review all parsing code to ensure no premature conversion to PaperMage format occurs during internal processing.
+2. Add assertions in tests to verify that all internal data structures are Docling native types.
+3. Create tests that trace the data flow through the parsing process to confirm separation of concerns.
+4. Implement logging that clearly indicates when conversion between formats occurs.
+5. Add documentation that emphasizes the architectural decision to use Docling's native structures internally.
+6. Create visual diagrams showing the data flow from input PDF through Docling processing to optional PaperMage conversion.
+7. Implement performance tests comparing direct use of Docling structures vs. converted PaperMage format.
+8. Testing approach: Use code inspection tools and targeted tests to verify that no PaperMage-specific code is used during internal processing.
+

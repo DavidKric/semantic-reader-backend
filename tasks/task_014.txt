@@ -1,0 +1,25 @@
+# Task ID: 14
+# Title: Refactor: Replace Pipeline with Native Docling Architecture
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Refactor the semantic-reader-backend codebase to use Docling's native architecture instead of manually orchestrating a pipeline with docling-core and docling-parse. This will reduce complexity and improve maintainability.
+# Details:
+
+
+# Test Strategy:
+
+
+# Subtasks:
+## 1. Analyze Current Codebase and Conversion Points [pending]
+### Dependencies: None
+### Description: Identify all files in the current codebase that handle document conversion between formats. Map each file's purpose and how it interacts with docling-core and docling-parse. Create a complete dependency graph of the conversion process.
+### Details:
+Review all parser and converter implementations, identify format translation points, and document how the current system orchestrates the pipeline manually.
+
+## 2. Introduce Docling Library Dependencies [pending]
+### Dependencies: None
+### Description: Update project dependencies to replace docling-core and docling-parse with the full Docling library. Update import statements and requirements files.
+### Details:
+Review the Docling library documentation, update pyproject.toml or requirements.txt, implement necessary changes to import statements, and ensure backward compatibility during the transition.
+

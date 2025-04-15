@@ -1,0 +1,95 @@
+# Task ID: 5
+# Title: Implement Table and Figure Handling
+# Status: done
+# Dependencies: 2
+# Priority: medium
+# Description: Create functionality to extract and represent tables and figures from PDFs using Docling's native capabilities, ensuring compatibility with PaperMage format.
+# Details:
+1. Utilize Docling's native models and parsers for table and figure extraction, avoiding reimplementation of existing functionalities.
+2. Configure DoclingPdfParser to leverage its RTL support for document layout and structure analysis.
+3. Implement table detection and structure analysis using Docling's table models to populate the tables layer with structured content (rows, columns, cells).
+4. Use Docling's pictures output to identify figure regions and extract embedded bitmaps or vector graphics.
+5. Implement caption detection and linking to figures/tables using spatial proximity and Docling's layout analysis.
+6. Add tables and figures as entity layers in the Document, ensuring proper coordinate mapping.
+7. Ensure compatibility with PaperMage format during conversion, wrapping Docling's outputs as needed.
+8. Handle multi-page tables and ensure seamless integration of extracted data into the unified document model.
+
+# Test Strategy:
+Create tests that verify:
+1. Tables are correctly identified and structured using Docling's native table models.
+2. Figures are accurately detected and extracted using Docling's pictures output.
+3. Captions are properly linked to their corresponding figures/tables using spatial proximity.
+4. Test with documents containing complex tables and figures, ensuring compatibility with PaperMage's output format.
+5. Verify that table content is properly structured in rows and columns, leveraging Docling's RTL capabilities.
+6. Ensure multi-page tables are handled correctly and integrated seamlessly into the document model.
+
+# Subtasks:
+## 1. Create PDF Rasterizer for Page Image Generation [done]
+### Dependencies: None
+### Description: Implement a PDF rasterizer module that converts PDF pages to images for further processing of tables and figures. This will serve as the foundation for visual element extraction.
+### Details:
+1. Create `rasterizers/pdf_rasterizer.py` module (note the underscore in filename)
+2. Implement a PDFRasterizer class that leverages Docling's parser for page renderings
+3. Add methods for controlling resolution and image format (PNG recommended for quality)
+4. Implement coordinate mapping between PDF coordinates and image pixels
+5. Add caching mechanism to avoid re-rasterizing the same page multiple times
+6. Include error handling for corrupt PDFs
+7. Ensure the rasterizer populates the images layer in the output (analogous to PaperMage's Document.images)
+8. Testing approach: Create unit tests with sample PDFs containing various page sizes and verify correct image generation and coordinate mapping
+
+<info added on 2025-04-13T13:41:46.067Z>
+
+## 2. Implement Table Detection and Structure Analysis [done]
+### Dependencies: 5.1
+### Description: Create a table predictor module that uses Docling's table capabilities to detect tables in PDFs and analyze their structure, including rows, columns, and cells.
+### Details:
+1. Create `predictors/table_predictor.py` module (note the underscore in filename)
+2. Implement TablePredictor class that wraps Docling's table models for table detection and structure analysis
+3. Use Docling's native table parsing to represent tables as a collection of cells (in TableItem) with coordinates
+4. Ensure the table's text content is properly arranged in rows and columns using Docling's RTL capabilities
+5. Add methods to convert extracted tables to structured data formats (e.g., pandas DataFrame)
+6. Implement confidence scoring for table detection quality
+7. Handle edge cases like tables spanning multiple pages
+8. Testing approach: Create unit tests with sample PDFs containing various table types and verify correct structure extraction
+
+<info added on 2025-04-13T13:42:05.500Z>
+
+## 3. Implement Figure Extraction and Processing [done]
+### Dependencies: 5.1
+### Description: Create functionality to detect, extract, and process figures and images from PDF documents using Docling's pictures output.
+### Details:
+1. Create a FigureExtractor class that uses Docling's capability to yield bitmap resources with coordinates
+2. Implement methods to extract embedded bitmaps and vector graphics from PDFs using Docling's parser
+3. Add functionality to store metadata about each figure (page number, position, size)
+4. Implement deduplication for repeated images
+5. Ensure extracted figures are compatible with PaperMage's format
+6. Testing approach: Create unit tests with sample PDFs containing various types of figures (raster images, vector graphics, charts) and verify correct extraction
+
+<info added on 2025-04-13T13:42:25.530Z>
+
+## 4. Implement Caption Detection and Entity Linking [done]
+### Dependencies: 5.2, 5.3
+### Description: Create functionality to detect captions for tables and figures, and link them to their corresponding visual elements using spatial proximity on the page.
+### Details:
+1. Implement caption detection using Docling's layout analysis and spatial proximity
+2. Create methods to associate captions with their corresponding tables or figures
+3. Ensure compatibility with PaperMage's output format for captions
+4. Testing approach: Create unit tests with sample PDFs containing figures and tables with various caption styles and verify correct linking
+
+<info added on 2025-04-13T13:42:43.210Z>
+
+## 5. Integrate Tables and Figures as Document Entity Layers [done]
+### Dependencies: 5.2, 5.3, 5.4
+### Description: Integrate the extracted tables and figures into the Document model as entity layers with proper coordinate mapping.
+### Details:
+1. Extend the Document class to include tables and figures as entity layers
+2. Use Docling's native outputs to populate the tables and figures layers
+3. Ensure proper coordinate mapping between the PDF and the extracted entities
+4. Create serialization and deserialization methods for tables and figures
+5. Implement methods to export tables to various formats (CSV, JSON, HTML)
+6. Add functionality to render tables and figures in different output formats
+7. Create a unified API for accessing all visual elements in a document
+8. Testing approach: Create integration tests that verify the complete pipeline from PDF to structured document with tables and figures as properly mapped entities
+
+<info added on 2025-04-13T13:43:03.989Z>
+

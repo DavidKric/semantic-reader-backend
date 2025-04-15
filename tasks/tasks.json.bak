@@ -1,0 +1,927 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Setup Project Structure and Dependencies",
+      "description": "Create the initial project structure with all required directories and files, and set up dependencies for the PaperMage-Docling implementation according to the PRD specifications.",
+      "status": "done",
+      "dependencies": [],
+      "priority": "high",
+      "details": "1. Create the directory structure as outlined in the PRD (page 22): papermage_docling/parsers/, predictors/, rasterizers/, visualizers/, api/, converters/, tests/\n2. Set up pyproject.toml with dependencies including docling, docling-core, docling-parse, docling-serve, FastAPI, uvicorn, and other required packages as specified in the PRD (page 8 and 19)\n3. Create empty __init__.py files in each directory to make them proper Python packages\n4. Set up a basic README.md with project description and installation instructions\n5. Create a .gitignore file for Python projects\n6. Configure pytest for testing according to the Testing & Validation section (pages 40-45)\n7. Follow exact file naming conventions as specified in the PRD (e.g., docling_pdf_parser.py)\n8. Reference PaperMage GitHub repository structure for code organization examples",
+      "testStrategy": "Verify that the project structure matches the PRD specification (page 22). Ensure all dependencies can be installed in a clean environment. Run a simple import test to confirm package structure is correct. Implement unit tests, integration tests, and RTL validation tests as outlined in the Testing & Validation section (pages 40-45).",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create Basic Project Structure and Configuration Files",
+          "description": "Set up the foundational directory structure and essential configuration files for the PaperMage-Docling project following Python package best practices and PRD specifications.",
+          "details": "1. Create the root project directory 'papermage_docling' (note the underscore as per PRD)\n2. Create the following subdirectories as specified on page 22 of the PRD: parsers/, predictors/, rasterizers/, visualizers/, api/, converters/, tests/\n3. Add empty __init__.py files to each directory to make them proper Python packages\n4. Create a README.md with project description, purpose, and basic installation instructions\n5. Create a .gitignore file using Python template (include __pycache__/, *.pyc, .pytest_cache/, .coverage, etc.)\n6. Create a LICENSE file (recommend MIT or Apache 2.0)\n7. Follow exact file naming conventions as specified in the PRD (e.g., docling_pdf_parser.py)\n8. Test by verifying all directories and files exist with correct structure\n\n## Key PRD References:\n- Directory structure is defined in detail on page 22-23 of the PRD under \"System Architecture & Directory Layout\" section. Use exact directory and file naming conventions (e.g., use \"docling_pdf_parser.py\" not \"parser_docling.py\").\n- Complete structure examples:\n```\npapermage_docling/\n├── parsers/\n│   ├── __init__.py\n│   ├── docling_pdf_parser.py\n│   └── docling_ocr_parser.py\n├── predictors/\n│   ├── __init__.py\n│   ├── structure_predictor.py\n│   ├── table_predictor.py\n│   ├── language_predictor.py\n│   └── rtl_utils.py\n[etc...]\n```\n- Use MIT License to align with original PaperMage (referenced on page 10: \"MIT License utility\")\n- Follow the same README structure and basic content approach as PaperMage (https://github.com/allenai/papermage)",
+          "status": "done",
+          "dependencies": [],
+          "parentTaskId": 1
+        },
+        {
+          "id": 2,
+          "title": "Configure Package Dependencies with pyproject.toml",
+          "description": "Set up the project's dependency management using pyproject.toml following modern Python packaging standards for better dependency resolution and project metadata.",
+          "details": "1. Create pyproject.toml in the root directory\n2. Configure build-system section using hatchling\n3. Add project metadata (name, version, description, authors, etc.)\n4. Define core dependencies including docling, docling-core, docling-parse, and fastapi\n5. Define API dependencies including FastAPI and uvicorn \n6. Define development dependencies including pytest, black, ruff, mypy\n7. Configure optional dependencies for different use cases\n8. Test by running 'pip install -e .' to verify the configuration works correctly\n\n## Key Dependencies:\n- Core: docling, docling-core, docling-parse\n- API: FastAPI, uvicorn, pydantic\n- PDF Processing: PyMuPDF\n- Testing and Development: pytest, black, ruff, mypy\n\n## Implementation Notes:\n- Python requirement set to >=3.8 \n- All project metadata properly configured\n- Build system using hatchling\n- Tool configurations for ruff, pytest, and mypy included",
+          "status": "done",
+          "dependencies": [],
+          "parentTaskId": 1
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Implement DoclingPdfParser",
+      "description": "Create the core PDF parsing module that uses docling-parse to extract text and layout information from PDFs, as specified in the PRD on page 15 under 'Functional Requirements'. Use Docling's native data structures internally and convert to PaperMage format only at the API/output level.",
+      "status": "done",
+      "dependencies": [
+        1
+      ],
+      "priority": "high",
+      "details": "1. Create parsers/docling_pdf_parser.py (as specified in PRD page 22) that wraps docling-parse functionality\n2. Implement DoclingParser class with parse() method that takes a PDF path and returns a Document object\n3. Follow the pseudocode implementation from PRD pages 24-25: parse PDF using Docling, convert to Document, build base layers, apply RTL fixes\n4. CRITICAL: Use Docling's native data structures internally throughout the entire parsing process - do not convert to PaperMage format during any internal operations\n5. Create a dedicated converter module (converters/docling_to_papermage.py) that is solely responsible for transforming Docling's native structures to PaperMage's multilayer Document representation (PRD page 11) only at the API/output level\n6. Add an output_format parameter to the parser's parse() method to support both Docling native and PaperMage formats, with 'docling' as the default\n7. Ensure all internal processing (including RTL handling, text extraction, and layout analysis) works directly with Docling's native data structures without any intermediate conversions\n8. Extract text content into symbols string, preserving reading order while maintaining Docling's internal representation\n9. Create base entity layers (pages, rows, tokens, words) from docling-parse output only when converting to PaperMage format via the converter module\n10. Preserve entity positional information using Box classes as specified on PRD page 15\n11. Add logging for parsing steps that clearly indicates when conversion to PaperMage format occurs (only at output)\n12. Implement to_json() method to serialize Document to PaperMage-compatible JSON format (PRD pages 16-17)\n13. Add from_json() method to deserialize JSON back to Document\n14. Thoroughly examine both Docling and PaperMage code repositories to ensure proper compatibility and implementation\n15. Focus on creating robust conversion logic in the dedicated converter module while keeping all internal processing in Docling's native format\n\nIMPORTANT: All internal processing (including RTL handling) must work directly with Docling's native data structures, not with PaperMage Document objects. Only convert to PaperMage format at the API/output level. Reference existing implementations in papermage_docling/document.py, papermage_docling/converters/docling_to_papermage.py, and papermage_docling/parsers/docling_parser.py that demonstrate the correct approach of:\n1) Using Docling's structures internally for all processing\n2) Creating a dedicated converter module to transform to PaperMage format only when needed\n3) Adding an output_format parameter to the parser's parse() method to support both formats, defaulting to Docling's native format\n4) Maintaining a clear separation between internal processing (Docling) and output formatting (PaperMage)",
+      "testStrategy": "Create unit tests in tests/testparsers/testdoclingpdfparser.py that verify:\n1. Basic PDF parsing works (using a simple test PDF)\n2. Docling's native data structures are correctly maintained during internal processing with no premature conversion to PaperMage format\n3. Conversion to PaperMage format occurs only at the API/output level via the dedicated converter module\n4. Conversion to PaperMage format produces all expected layers (symbols, pages, rows, tokens) as described in PRD page 11\n5. Text content is correctly extracted while maintaining Docling's internal representation\n6. Coordinates and bounding boxes are properly preserved with required precision\n7. RTL text handling works correctly on Docling's native structures without intermediate conversion\n8. JSON serialization/deserialization works correctly according to PaperMage's implementation\n9. Test with various PDF layouts to ensure reading order is preserved in both Docling and PaperMage formats\n10. Verify that the output_format parameter correctly determines whether Docling native or PaperMage format is returned\n11. Benchmark performance differences between direct usage of Docling structures vs. converted PaperMage format\n12. Test utility functions for working with Docling's native structures directly\n13. Verify that no PaperMage-specific code or data structures are used during the internal parsing process\n14. Test that the converter module correctly handles all aspects of the transformation from Docling to PaperMage format",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create DoclingPdfParser class structure and basic setup",
+          "description": "Set up the core parser class structure with necessary imports, initialization, and basic configuration options. This will establish the foundation for the PDF parsing functionality using Docling's native data structures.",
+          "dependencies": [],
+          "details": "1. Create `parsers/docling_pdf_parser.py` file with proper imports from docling-parse and other required libraries.\n2. Implement the DoclingPdfParser class with constructor that accepts configuration parameters (e.g., OCR settings, language options).\n3. Add class-level documentation explaining the purpose and usage of the parser.\n4. Set up logging configuration for the parser module.\n5. Implement basic initialization that creates an instance of Docling's PDF parser.\n6. Add type hints and docstrings following the project's style guide.\n7. Create unit tests for the basic class initialization and configuration.\n8. Testing approach: Write tests that verify the parser initializes correctly with various configuration options.",
+          "status": "done",
+          "parentTaskId": 2
+        },
+        {
+          "id": 2,
+          "title": "Implement core PDF parsing functionality using Docling's native structures",
+          "description": "Implement the parse() method that takes a PDF path and processes it using Docling's native data structures, maintaining all internal processing with Docling's formats.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Implement the parse() method that accepts a PDF file path and optional parameters.\n2. Use Docling's PDF parser to extract text and layout information from the PDF.\n3. Process the extracted data while maintaining Docling's native data structures throughout.\n4. Add support for handling different PDF types (text-based, scanned with OCR).\n5. Implement RTL text handling directly within Docling's native structures.\n6. Add detailed logging for each parsing step.\n7. Implement error handling for common PDF parsing issues (corrupted files, password protection, etc.).\n8. Add an output_format parameter with 'docling' as the default option.\n9. Testing approach: Create tests with various PDF samples (simple text, complex layouts, RTL text) to verify parsing accuracy while maintaining Docling's native structures.",
+          "status": "done",
+          "parentTaskId": 2
+        },
+        {
+          "id": 3,
+          "title": "Create dedicated converter module for Docling to PaperMage transformation",
+          "description": "Develop a separate converter module that transforms Docling's native data structures to PaperMage's multilayer Document representation only when needed at the API/output level.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Create `converters/docling_to_papermage.py` file with necessary imports.\n2. Implement a DoclingToPaperMageConverter class with methods to convert between formats.\n3. Design conversion functions for each entity type (document, page, row, token, word).\n4. Ensure Box classes are used correctly to preserve positional information.\n5. Implement methods to handle the conversion of text content while preserving reading order.\n6. Add support for converting layout information (columns, paragraphs, etc.).\n7. Implement error handling for edge cases in the conversion process.\n8. Add detailed logging for the conversion steps.\n9. Testing approach: Create unit tests that verify correct conversion of various document structures from Docling to PaperMage format, with special attention to positional information and text ordering.\n\n<info added on 2025-04-13T16:20:47.778Z>\nThe existing files `converters/document.py` and `converters/docling_to_papermage_converter.py` have already been implemented. The DoclingToPaperMageConverter class should be integrated with these existing modules. Specifically:\n\n1. Update imports to reference the existing `converters/document.py` for shared conversion utilities.\n2. Extend or modify the existing `converters/docling_to_papermage_converter.py` rather than creating a new file.\n3. Ensure compatibility with the conversion interfaces already defined in these files.\n4. Reuse any common conversion patterns or utilities from the existing implementation.\n5. Add new methods as needed while maintaining consistency with the established conversion architecture.\n</info added on 2025-04-13T16:20:47.778Z>",
+          "status": "done",
+          "parentTaskId": 2
+        },
+        {
+          "id": 4,
+          "title": "Extend parse() method to support PaperMage output format",
+          "description": "Enhance the parse() method to support outputting in PaperMage format by integrating the converter module, while ensuring all internal processing still uses Docling's native structures.",
+          "dependencies": [
+            2,
+            3
+          ],
+          "details": "1. Modify the parse() method to accept 'papermage' as an output_format option.\n2. Integrate the DoclingToPaperMageConverter to transform the output only at the final step.\n3. Ensure all internal processing (including RTL handling) continues to use Docling's native structures.\n4. Implement conditional logic to return either Docling native or PaperMage format based on the output_format parameter.\n5. Add documentation explaining the different output formats and their use cases.\n6. Optimize the conversion process to minimize performance impact.\n7. Add appropriate error handling for conversion failures.\n8. Testing approach: Create tests that verify both output formats work correctly with the same input, and that internal processing remains in Docling's native format regardless of output choice.",
+          "status": "done",
+          "parentTaskId": 2
+        },
+        {
+          "id": 5,
+          "title": "Implement serialization methods for Document objects",
+          "description": "Add to_json() and from_json() methods to serialize and deserialize Document objects in PaperMage-compatible JSON format, ensuring proper handling of all document components.",
+          "dependencies": [
+            3,
+            4
+          ],
+          "details": "1. Implement to_json() method that serializes a Document object to PaperMage-compatible JSON format as specified in the PRD.\n2. Ensure all entity layers (pages, rows, tokens, words) are properly serialized with their positional information.\n3. Implement from_json() method to deserialize JSON back to a Document object.\n4. Add validation to ensure the JSON structure matches the expected PaperMage format.\n5. Implement proper error handling for malformed JSON or missing required fields.\n6. Add support for handling special characters and Unicode in the serialization process.\n7. Optimize serialization for large documents to maintain performance.\n8. Testing approach: Create round-trip tests that serialize documents to JSON and back, verifying that all information is preserved correctly.",
+          "status": "done",
+          "parentTaskId": 2
+        },
+        {
+          "id": 6,
+          "title": "Implement comprehensive testing and documentation",
+          "description": "Create thorough tests for the DoclingPdfParser and converter modules, along with comprehensive documentation for usage and integration.",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "details": "1. Implement integration tests that verify the end-to-end parsing process with various PDF types.\n2. Create tests for edge cases such as empty PDFs, PDFs with only images, and malformed PDFs.\n3. Test performance with large documents to ensure efficient processing.\n4. Implement tests for RTL text handling to verify correct processing and output.\n5. Create comprehensive documentation with usage examples for both Docling native and PaperMage output formats.\n6. Add API documentation for all public methods and classes.\n7. Create examples showing integration with other components of the system.\n8. Implement benchmarking tests to measure parsing performance.\n9. Testing approach: Use a diverse set of real-world PDFs to verify parsing accuracy, performance, and compatibility with both output formats.",
+          "status": "done",
+          "parentTaskId": 2
+        },
+        {
+          "id": 7,
+          "title": "Verify strict separation between Docling internal processing and PaperMage output conversion",
+          "description": "Conduct a thorough code review and implement tests to ensure that Docling's native data structures are used exclusively for all internal processing, with conversion to PaperMage format occurring only at the API/output level.",
+          "dependencies": [
+            2,
+            3,
+            4
+          ],
+          "details": "1. Review all parsing code to ensure no premature conversion to PaperMage format occurs during internal processing.\n2. Add assertions in tests to verify that all internal data structures are Docling native types.\n3. Create tests that trace the data flow through the parsing process to confirm separation of concerns.\n4. Implement logging that clearly indicates when conversion between formats occurs.\n5. Add documentation that emphasizes the architectural decision to use Docling's native structures internally.\n6. Create visual diagrams showing the data flow from input PDF through Docling processing to optional PaperMage conversion.\n7. Implement performance tests comparing direct use of Docling structures vs. converted PaperMage format.\n8. Testing approach: Use code inspection tools and targeted tests to verify that no PaperMage-specific code is used during internal processing.",
+          "status": "done",
+          "parentTaskId": 2
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Implement RTL Text Support",
+      "description": "Create utilities to handle right-to-left text (particularly Hebrew) correctly in the parsing pipeline, following the PRD's 'Hebrew/RTL Support Plan' section (pages 33-38).",
+      "status": "done",
+      "dependencies": [
+        2
+      ],
+      "priority": "high",
+      "details": "1. Create predictors/rtl_utils.py with functions for RTL text handling as specified in PRD (page 29)\n2. Implement is_rtl(text: str) -> bool function to detect RTL scripts\n3. Implement reorder_text_and_boxes(text: str, boxes: List[Box]) -> Tuple[str, List[Box]] to correctly order RTL text and associated bounding boxes\n4. Implement normalize_document(document: Document) -> None to apply RTL fixes throughout a Document\n5. Integrate RTL handling into the DoclingParser.parse() method as step 4 'Apply RTL fixes' with rtl_utils.normalize_document(doc) call (PRD pages 24-25)\n6. Handle mixed direction text (e.g., English words in Hebrew text)\n7. Ensure correct span indices for RTL text segments\n8. Add metadata flags for RTL content",
+      "testStrategy": "Create tests in tests/testpredictors/test_rtl_utils.py that verify:\n1. RTL detection works correctly for Hebrew and Arabic text\n2. Text reordering preserves all characters while fixing order\n3. Box coordinates are correctly reordered with text\n4. Mixed direction text is handled properly\n5. Test with a simple Hebrew PDF to ensure end-to-end RTL handling works\n6. Follow specific RTL testing strategies outlined in the PRD (pages 42-43)",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create RTL Detection and Script Identification Functions",
+          "description": "Implement utility functions to detect RTL scripts (particularly Hebrew) and identify script types in text. This forms the foundation for all RTL text processing in the pipeline.",
+          "dependencies": [],
+          "details": "1. Create predictors/rtl_utils.py module with proper imports (note the underscore in filename per PRD page 22)\n2. Implement is_rtl(text: str) -> bool function as specified in PRD (page 29) using Unicode character ranges to detect RTL scripts (Hebrew, Arabic, etc.)\n3. Create helper functions to identify specific script types (is_hebrew(), is_arabic(), etc.)\n4. Implement get_script_direction() to determine text direction based on character analysis\n5. Add support for detecting mixed script content\n6. Write comprehensive unit tests with various text samples including Hebrew, Arabic, mixed content, and edge cases\n7. Test with Unicode Bidirectional Algorithm examples to ensure compliance\n8. Document all functions with clear docstrings explaining usage and return values\n\n<info added on 2025-04-13T13:32:02.303Z>\n## Key PRD References:\n- **Function Implementation**: From \"Implementation Summaries\" (p.29):\n  - \"`is_rtl(text: str) -> bool`: returns True if characters in text are mostly from an RTL script (Hebrew, Arabic, etc.). This could check Unicode ranges or use Python's `unicodedata.bidirectional` property on characters.\"\n\n- **Script Detection**: From \"Hebrew/RTL Support Plan\" (p.33-38):\n  - \"PDF extraction tools (including Docling's) typically output text in the visual order they appear on the page, which for RTL scripts means reversed logical order.\"\n  - Example: \"a Hebrew sentence 'בודק RTL טקסט' (meaning 'testing RTL text') might be extracted as 'טקסט RTL בודק' (letters in reverse order) if read left-to-right.\"\n\n- **Libraries and Approaches**: From \"Hebrew/RTL Support Plan\" (p.33-38):\n  - \"We will use Python's `bidilib` (if available) or a manual approach leveraging Unicode character properties.\"\n  - \"For Hebrew, simply reversing might suffice in many cases, but ideally apply the full bidi algorithm (for safety if numbers or LTR segments are inside).\"\n\n- **File Naming**: From \"System Architecture & Directory Layout\" (p.22):\n  - Use correct module name: `predictors/rtl_utils.py` with underscore.\n</info added on 2025-04-13T13:32:02.303Z>",
+          "status": "done",
+          "parentTaskId": 3
+        },
+        {
+          "id": 2,
+          "title": "Implement Text Reordering for RTL Content",
+          "description": "Create functions to properly reorder RTL text and associated bounding boxes according to the Unicode Bidirectional Algorithm, ensuring correct visual representation.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Implement reorder_text_and_boxes(text: str, boxes: List[Box]) -> Tuple[str, List[Box]] function as specified in PRD (page 29)\n2. Use the Unicode Bidirectional Algorithm to handle text reordering\n3. Create helper functions to handle special cases like numbers and Latin characters within RTL text\n4. Implement logic to adjust bounding box ordering to match the reordered text\n5. Handle mixed direction text by identifying script changes and applying appropriate reordering\n6. Create visualization tools for debugging text reordering\n7. Test with various Hebrew text samples containing mixed content\n8. Benchmark performance for large documents with mixed RTL/LTR content\n9. Reference the detailed RTL Support Plan in PRD (pages 33-38) for implementation guidance\n\n<info added on 2025-04-13T13:32:25.551Z>\n## Key PRD References:\n- **Function Specification**: From \"Implementation Summaries\" (p.29):\n  - \"`reorder_text_and_boxes(text: str, boxes: List[Box]) -> Tuple[str, List[Box]]`: if `is_rtl(text)` is True, this function will reorder the characters in `text` to logical order and correspondingly reorder the list of `Box` objects so that the first character in the new text corresponds to the first box on the right.\"\n\n- **Bidi Algorithm Implementation**: From \"Hebrew/RTL Support Plan\" (p.33-38):\n  - \"Python's bidi algorithm can handle mixed text, inserting Unicode bidi markers. We will integrate that so that, for example, 'Algorithm 1 מתואר' (mixed English/Hebrew) is stored in a way that when displayed, 'Algorithm 1' remains left-to-right within the right-to-left sentence.\"\n  - \"For English phrase, the first token's box is leftmost; for Hebrew, the first token's box is rightmost. After reordering the text, we need to ensure that the sequence of boxes matches the sequence of characters or tokens in the text.\"\n\n- **Implementation Approach**: From \"Hebrew/RTL Support Plan\" (p.33-38):\n  - \"When processing a line that is detected as RTL, we will sort the character or token boxes in descending order of their x-coordinate (since rightmost comes first) before associating them with the text characters.\"\n  - \"For entire line boxes (the Row entity box covering the line) we keep it as-is (it spans the whole line regardless of text direction).\"\n\n- **Example with Visualized Process**: From \"Hebrew/RTL Support Plan\" (p.33-38):\n  - \"Example: A Hebrew paragraph in the PDF will be processed as follows:\n    1. Docling extracts: text=\"תורה לוגיקה\" (which is \"logic order\" reversed) and boxes for [\"תורה\", \"לוגיקה\"] but perhaps in opposite order.\n    2. `rtl_utils` sees Hebrew chars, reverses text to \"לוגיקה תורה\" (which is now the correct logical phrase \"torah logika\", meaning \"logic order\" in correct Hebrew).\n    3. It also swaps the two word boxes so that \"לוגיקה\" box comes first, \"תורה\" second.\"\n</info added on 2025-04-13T13:32:25.551Z>",
+          "status": "done",
+          "parentTaskId": 3
+        },
+        {
+          "id": 3,
+          "title": "Develop Document Normalization for RTL Support",
+          "description": "Create a document normalization function that applies RTL fixes throughout a Document object, ensuring consistent handling of RTL content across the entire document.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "1. Implement normalize_document(document: Document) -> None function as specified in PRD (page 29)\n2. Traverse the document structure to identify and mark RTL text segments\n3. Apply text reordering to all RTL segments using functions from subtask 2\n4. Update span indices to maintain correct text references after reordering\n5. Add metadata flags to document sections containing RTL content\n6. Implement special handling for tables, lists, and other structured content\n7. Create test cases with complex document structures containing mixed RTL/LTR content\n8. Ensure normalization is idempotent (running it multiple times produces the same result)\n9. Follow the detailed implementation guidelines in the PRD's Hebrew/RTL Support Plan (pages 33-38)\n\n<info added on 2025-04-13T13:32:46.871Z>\n## Key PRD References:\n- **Function Specification**: From \"Implementation Summaries\" (p.29):\n  - \"`normalize_document(document: Document) -> None`: a convenience that goes through all text entities (or specifically low-level ones like tokens or rows) and applies reordertextandboxes where appropriate.\"\n  - \"For example, for each row entity, check if its text is RTL; if yes, fix it in place. This way higher-level entities that consist of those spans automatically get corrected text.\"\n\n- **Document Traversal Approach**: From \"Hebrew/RTL Support Plan\" (p.33-38):\n  - \"RTL adjustment is applied during step 2 (after extraction, before creating spans) to ensure any Hebrew/Arabic text segments are stored in correct order.\"\n  - \"We might look at how docling-parse orders characters: if it's purely left-to-right by coordinate (which is typical), RTL text would come out reversed. So our utility fixes that.\"\n  - \"We must do the above consistently at all levels: At the line (row) level, ensure that the text in `.symbols` for that row reads correctly.\"\n\n- **Metadata Addition**: From \"Hebrew/RTL Support Plan\" (p.33-38):\n  - \"We will add a metadata flag perhaps: For any Entity that has been reordered, set `entity.metadata[\"direction\"] = \"RTL\"` for transparency.\"\n  - \"Docling's planned language detection could populate `DoclingDocument.metadata.language`; until then, we handle it.\"\n\n- **Implementation Process**: From \"Implementation Summaries\" (p.24-25):\n  - In pseudocode showing `parse()` method: after building base layers, step 4 is `rtl_utils.normalize_document(doc)` to apply RTL fixes.\n</info added on 2025-04-13T13:32:46.871Z>",
+          "status": "done",
+          "parentTaskId": 3
+        },
+        {
+          "id": 4,
+          "title": "Implement Span Index Correction for RTL Text",
+          "description": "Create utilities to ensure correct span indices for RTL text segments after reordering, maintaining proper references to the original text positions.",
+          "dependencies": [
+            2,
+            3
+          ],
+          "details": "1. Implement functions to track character positions before and after reordering\n2. Create a mapping system between original and reordered text positions\n3. Develop utilities to transform span indices based on the position mapping\n4. Handle special cases like bidirectional text with numbers and punctuation\n5. Create validation functions to ensure span integrity after transformations\n6. Implement efficient algorithms for index transformation to maintain performance\n7. Test with complex documents containing nested spans and mixed RTL/LTR content\n8. Create visualization tools to debug span transformations\n9. Reference the PRD's RTL Support Plan (pages 33-38) for specific requirements on span handling\n\n<info added on 2025-04-13T13:33:02.625Z>\n## Key PRD References:\n- **Integration Requirements**: From \"Implementation Summaries\" (p.29):\n  - \"All RTL text support functions are packaged within the docling.predictors module and called from the main PdfParser class.\"\n  - \"RTL detection and correction is automatically applied as part of the standard document parsing workflow.\"\n\n- **Parser Configuration**: From \"Hebrew/RTL Support Plan\" (p.33-38):\n  - \"RTL support is enabled by default but can be disabled via a parameter to PdfParser: `parser = PdfParser(enable_rtl=False)`\"\n  - \"Performance impact is minimal for documents without RTL content as detection is fast.\"\n  - \"When disabled, no RTL detection or reordering is performed at all, saving computation time for known LTR-only documents.\"\n\n- **Implementation Location**: From \"Architecture\" (p.22):\n  - \"RTL support code should be modularized into the predictors/ directory to allow for easy maintenance and potential future improvements.\"\n  - \"The main parser.py file should only contain imports and calls to the RTL modules, not the implementation details.\"\n\n- **Testing Strategy**: From \"Hebrew/RTL Support Plan\" (p.33-38):\n  - \"Integration tests should include PDF documents with mixed RTL/LTR content to ensure the parser correctly identifies and processes both.\"\n  - \"Tests should verify that parsing the same document with enable_rtl=True and enable_rtl=False produces expected differences in the output.\"\n</info added on 2025-04-13T13:33:02.625Z>",
+          "status": "done",
+          "parentTaskId": 3
+        },
+        {
+          "id": 5,
+          "title": "Integrate RTL Support into DoclingParser",
+          "description": "Integrate all RTL handling utilities into the main parsing pipeline, ensuring seamless processing of documents containing RTL text.",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "details": "1. Modify DoclingParser.parse() method to detect and handle RTL content\n2. Add configuration options for RTL processing (enable/disable, specific language support)\n3. Integrate normalize_document() function into the parsing workflow as step 4 'Apply RTL fixes' with rtl_utils.normalize_document(doc) call (PRD pages 24-25)\n4. Implement pre-processing steps to identify document direction before full parsing\n5. Add post-processing to ensure consistent metadata for RTL content\n6. Create comprehensive logging for RTL-related operations\n7. Develop end-to-end tests with various document types containing RTL content\n8. Benchmark parser performance with and without RTL processing to identify optimization opportunities\n9. Document the RTL support features in the parser's documentation\n10. Follow the integration approach outlined in the PRD's parsing pipeline description\n\n<info added on 2025-04-13T13:33:17.709Z>\n## Key PRD References:\n- **Testing Requirements**: From \"Hebrew/RTL Support Plan\" (p.35-36):\n  - \"Unit tests should focus on the RTL detection accuracy, correctness of reordering, and proper handling of mixed text.\"\n  - \"Test documents should include: Hebrew-only, Arabic-only, mixed Hebrew-English, and complex documents with tables containing RTL text.\"\n  - \"Edge cases to test include: numbers within RTL text, URLs, email addresses, and code snippets embedded in RTL paragraphs.\"\n\n- **Validation Criteria**: From \"Implementation Summaries\" (p.30-31):\n  - \"A test is considered passed when: 1) All RTL text is correctly identified, 2) The visual reading order matches the logical order in the Document object, 3) All entity references maintain integrity.\"\n  - \"Visual validation tools should be implemented to verify the text appears correctly when rendered.\"\n\n- **Test Data Sources**: From \"Hebrew/RTL Support Plan\" (p.37):\n  - \"Use the provided set of 20 benchmark documents with annotated ground truth for RTL detection and reordering evaluation.\"\n  - \"The benchmark documents are located in the 'test/resources/rtl_benchmark/' directory.\"\n  - \"Each document has a corresponding JSON file with the expected outputs when RTL processing is correctly applied.\"\n\n- **Performance Metrics**: From \"Implementation Summaries\" (p.31):\n  - \"RTL processing should not increase overall parsing time by more than 15% for documents with significant RTL content.\"\n  - \"For documents without RTL content, the overhead should be negligible (<2%).\"\n</info added on 2025-04-13T13:33:17.709Z>",
+          "status": "done",
+          "parentTaskId": 3
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Implement Structure Predictor",
+      "description": "Create a predictor that identifies document structure elements like titles, sections, and other semantic components using the native functionalities of docling, docling-parse, and docling-core.",
+      "status": "done",
+      "dependencies": [
+        2
+      ],
+      "priority": "medium",
+      "details": "1. Create predictors/structure_predictor.py with StructurePredictor class\n2. Leverage docling's native models and utilities for layout and structure analysis\n3. Create apply() method that analyzes Document content and integrates semantic layers using docling-core\n4. Utilize docling's equivalent predictors for identifying titles, abstracts, headings, figures, tables, captions, footnotes, references, etc.\n5. Group related lines into semantic blocks (e.g., paragraphs, section headings) using docling's grouping capabilities\n6. Add identified entities to the Document's entity layers\n7. Handle post-processing for multi-line elements using docling's built-in tools\n8. Ensure compatibility with RTL text by leveraging docling's text direction handling",
+      "testStrategy": "Create tests in tests/testpredictors/test_structure_predictor.py that verify:\n1. Structure predictor correctly identifies known elements in test documents using docling models\n2. Title detection works as expected\n3. Section headings are properly identified\n4. Abstract and other semantic blocks are correctly labeled\n5. Test with a sample academic paper to ensure structure is properly extracted\n6. Verify all docling-supported categories (title, abstract, heading, paragraph, figure, caption, table, footnote, reference) are correctly identified",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create StructurePredictor Class and Model Loading",
+          "description": "Set up the basic structure of the StructurePredictor class with model loading capabilities using docling's native models.",
+          "dependencies": [],
+          "details": "1. Create predictors/structure_predictor.py file (note the underscore in filename)\n2. Implement StructurePredictor class with initialization parameters for docling model selection\n3. Add model loading functionality for docling models from the docling repository\n4. Implement loading of both model and tokenizer using docling-core utilities\n5. Implement caching mechanism for efficient model loading\n6. Add configuration options for model parameters and thresholds\n7. Create utility methods for model input preprocessing using docling-parse\n8. Add error handling for missing models or incompatible configurations\n9. Test model loading with different configurations\n10. Document the class and its methods with proper docstrings",
+          "status": "done",
+          "parentTaskId": 4
+        },
+        {
+          "id": 2,
+          "title": "Implement Document Content Analysis Logic",
+          "description": "Create the core analysis functionality that processes document content and identifies structural elements using docling's native capabilities.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Implement the apply(document: Document) -> None method that takes a Document object as input\n2. Use docling-parse for preprocessing document content for model input\n3. Add support for iterating over document.pages or directly over document.rows (lines)\n4. Utilize docling's feature extraction for layout analysis (text content, position on page)\n5. Create functions to convert docling model predictions to semantic classifications\n6. Add confidence scoring for predictions to enable filtering\n7. Implement batching for efficient processing of large documents\n8. Leverage docling's RTL text handling for text direction adjustments\n9. Test with various document formats and layouts\n10. Implement logging for analysis steps and decisions",
+          "status": "done",
+          "parentTaskId": 4
+        },
+        {
+          "id": 3,
+          "title": "Develop Semantic Element Classification",
+          "description": "Implement specialized logic to classify document elements into categories supported by docling models: title, abstract, heading, paragraph, figure, caption, table, footnote, reference.",
+          "dependencies": [
+            2
+          ],
+          "details": "1. Create classification functions for all docling-supported categories (title, abstract, heading, paragraph, figure, caption, table, footnote, reference)\n2. Implement mapping from docling categories to Document layers (some one-to-one, some collapsed or split)\n3. Add heuristic rules to supplement docling model predictions (e.g., titles typically appear at the top)\n4. Utilize docling's font and style analysis for identifying emphasis and importance\n5. Leverage docling's positional analysis for understanding document layout structure\n6. Add language-specific rules for common document structures\n7. Implement contextual analysis to improve classification accuracy\n8. Create validation rules to ensure consistent document structure\n9. Test classification with diverse document types\n10. Add configuration options to adjust classification thresholds",
+          "status": "done",
+          "parentTaskId": 4
+        },
+        {
+          "id": 4,
+          "title": "Implement Semantic Block Grouping",
+          "description": "Create functionality to group related lines and elements into coherent semantic blocks like paragraphs, sections, and multi-line elements using docling's grouping capabilities.",
+          "dependencies": [
+            3
+          ],
+          "details": "1. Use docling's algorithms to detect paragraph boundaries based on spacing and indentation\n2. Leverage docling's grouping logic to combine related lines into coherent blocks\n3. Add support for multi-line elements like titles that span multiple lines\n4. Utilize docling's section boundary detection based on headings and content shifts\n5. Create hierarchical grouping to represent document structure (sections containing subsections)\n6. Add handling for special cases like lists, bullet points, and numbered items\n7. Implement post-processing to refine grouping based on content coherence\n8. Add support for column-based layouts with proper reading order using docling\n9. Test with documents containing complex layouts\n10. Implement visualization tools for debugging grouping results",
+          "status": "done",
+          "parentTaskId": 4
+        },
+        {
+          "id": 5,
+          "title": "Integrate with Document Entity Layers",
+          "description": "Finalize the structure predictor by adding identified semantic elements to the Document's entity layers and implementing post-processing for consistency using docling's native functionalities.",
+          "dependencies": [
+            4
+          ],
+          "details": "1. Implement methods to add identified elements to Document entity layers using docling-core\n2. Create entity representations for different semantic elements based on docling categories\n3. Add metadata to entities (confidence scores, hierarchical relationships)\n4. Implement post-processing to ensure consistency across the document using docling utilities\n5. Add validation to check for missing or inconsistent structure elements\n6. Create methods to resolve conflicts between overlapping entities\n7. Implement serialization/deserialization of structure information\n8. Add support for updating existing document structure\n9. Create comprehensive tests for the entire structure prediction pipeline\n10. Add performance metrics collection for analysis quality assessment\n11. Leverage docling's RTL text compatibility features for final adjustments",
+          "status": "done",
+          "parentTaskId": 4
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Implement Table and Figure Handling",
+      "description": "Create functionality to extract and represent tables and figures from PDFs using Docling's native capabilities, ensuring compatibility with PaperMage format.",
+      "status": "done",
+      "dependencies": [
+        2
+      ],
+      "priority": "medium",
+      "details": "1. Utilize Docling's native models and parsers for table and figure extraction, avoiding reimplementation of existing functionalities.\n2. Configure DoclingPdfParser to leverage its RTL support for document layout and structure analysis.\n3. Implement table detection and structure analysis using Docling's table models to populate the tables layer with structured content (rows, columns, cells).\n4. Use Docling's pictures output to identify figure regions and extract embedded bitmaps or vector graphics.\n5. Implement caption detection and linking to figures/tables using spatial proximity and Docling's layout analysis.\n6. Add tables and figures as entity layers in the Document, ensuring proper coordinate mapping.\n7. Ensure compatibility with PaperMage format during conversion, wrapping Docling's outputs as needed.\n8. Handle multi-page tables and ensure seamless integration of extracted data into the unified document model.",
+      "testStrategy": "Create tests that verify:\n1. Tables are correctly identified and structured using Docling's native table models.\n2. Figures are accurately detected and extracted using Docling's pictures output.\n3. Captions are properly linked to their corresponding figures/tables using spatial proximity.\n4. Test with documents containing complex tables and figures, ensuring compatibility with PaperMage's output format.\n5. Verify that table content is properly structured in rows and columns, leveraging Docling's RTL capabilities.\n6. Ensure multi-page tables are handled correctly and integrated seamlessly into the document model.",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create PDF Rasterizer for Page Image Generation",
+          "description": "Implement a PDF rasterizer module that converts PDF pages to images for further processing of tables and figures. This will serve as the foundation for visual element extraction.",
+          "dependencies": [],
+          "details": "1. Create `rasterizers/pdf_rasterizer.py` module (note the underscore in filename)\n2. Implement a PDFRasterizer class that leverages Docling's parser for page renderings\n3. Add methods for controlling resolution and image format (PNG recommended for quality)\n4. Implement coordinate mapping between PDF coordinates and image pixels\n5. Add caching mechanism to avoid re-rasterizing the same page multiple times\n6. Include error handling for corrupt PDFs\n7. Ensure the rasterizer populates the images layer in the output (analogous to PaperMage's Document.images)\n8. Testing approach: Create unit tests with sample PDFs containing various page sizes and verify correct image generation and coordinate mapping\n\n<info added on 2025-04-13T13:41:46.067Z>",
+          "status": "done",
+          "parentTaskId": 5
+        },
+        {
+          "id": 2,
+          "title": "Implement Table Detection and Structure Analysis",
+          "description": "Create a table predictor module that uses Docling's table capabilities to detect tables in PDFs and analyze their structure, including rows, columns, and cells.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Create `predictors/table_predictor.py` module (note the underscore in filename)\n2. Implement TablePredictor class that wraps Docling's table models for table detection and structure analysis\n3. Use Docling's native table parsing to represent tables as a collection of cells (in TableItem) with coordinates\n4. Ensure the table's text content is properly arranged in rows and columns using Docling's RTL capabilities\n5. Add methods to convert extracted tables to structured data formats (e.g., pandas DataFrame)\n6. Implement confidence scoring for table detection quality\n7. Handle edge cases like tables spanning multiple pages\n8. Testing approach: Create unit tests with sample PDFs containing various table types and verify correct structure extraction\n\n<info added on 2025-04-13T13:42:05.500Z>",
+          "status": "done",
+          "parentTaskId": 5
+        },
+        {
+          "id": 3,
+          "title": "Implement Figure Extraction and Processing",
+          "description": "Create functionality to detect, extract, and process figures and images from PDF documents using Docling's pictures output.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Create a FigureExtractor class that uses Docling's capability to yield bitmap resources with coordinates\n2. Implement methods to extract embedded bitmaps and vector graphics from PDFs using Docling's parser\n3. Add functionality to store metadata about each figure (page number, position, size)\n4. Implement deduplication for repeated images\n5. Ensure extracted figures are compatible with PaperMage's format\n6. Testing approach: Create unit tests with sample PDFs containing various types of figures (raster images, vector graphics, charts) and verify correct extraction\n\n<info added on 2025-04-13T13:42:25.530Z>",
+          "status": "done",
+          "parentTaskId": 5
+        },
+        {
+          "id": 4,
+          "title": "Implement Caption Detection and Entity Linking",
+          "description": "Create functionality to detect captions for tables and figures, and link them to their corresponding visual elements using spatial proximity on the page.",
+          "dependencies": [
+            2,
+            3
+          ],
+          "details": "1. Implement caption detection using Docling's layout analysis and spatial proximity\n2. Create methods to associate captions with their corresponding tables or figures\n3. Ensure compatibility with PaperMage's output format for captions\n4. Testing approach: Create unit tests with sample PDFs containing figures and tables with various caption styles and verify correct linking\n\n<info added on 2025-04-13T13:42:43.210Z>",
+          "status": "done",
+          "parentTaskId": 5
+        },
+        {
+          "id": 5,
+          "title": "Integrate Tables and Figures as Document Entity Layers",
+          "description": "Integrate the extracted tables and figures into the Document model as entity layers with proper coordinate mapping.",
+          "dependencies": [
+            2,
+            3,
+            4
+          ],
+          "details": "1. Extend the Document class to include tables and figures as entity layers\n2. Use Docling's native outputs to populate the tables and figures layers\n3. Ensure proper coordinate mapping between the PDF and the extracted entities\n4. Create serialization and deserialization methods for tables and figures\n5. Implement methods to export tables to various formats (CSV, JSON, HTML)\n6. Add functionality to render tables and figures in different output formats\n7. Create a unified API for accessing all visual elements in a document\n8. Testing approach: Create integration tests that verify the complete pipeline from PDF to structured document with tables and figures as properly mapped entities\n\n<info added on 2025-04-13T13:43:03.989Z>",
+          "status": "done",
+          "parentTaskId": 5
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Implement Docling to PaperMage Converter",
+      "description": "Create a dedicated module to convert between Docling's document representation and PaperMage's JSON format, ensuring exact compatibility with PaperMage v0.18+ JSON structure.",
+      "status": "done",
+      "dependencies": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "priority": "high",
+      "details": "1. Create converters/docling_to_papermage_converter.py (using underscores per PRD p.22)\n2. Implement conversion from DoclingDocument to PaperMage JSON format\n3. Map Docling's text items to PaperMage's entity layers\n4. Ensure all PaperMage layers are properly populated (tokens, words, sentences, blocks, etc.)\n5. Handle special cases like bibliography, citations, and equations\n6. Preserve all metadata and coordinate information\n7. Implement validation to ensure output matches PaperMage's expected format\n8. Ensure the JSON output format exactly matches PaperMage v0.18+ as specified in PRD p.17",
+      "testStrategy": "Create tests that verify:\n1. Conversion preserves all information from Docling document\n2. Output JSON matches PaperMage's expected structure exactly (v0.18+)\n3. All entity layers are correctly populated\n4. Test with sample documents and compare to expected PaperMage output\n5. Validate JSON schema compliance\n6. Verify that existing consumers of PaperMage JSON can use the output without changes",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create Base Converter Module Structure",
+          "description": "Set up the foundational structure for the DoclingToPaperMageConverter module with proper class definitions, imports, and interface methods.",
+          "dependencies": [],
+          "details": "1. Create the file `converters/docling_to_papermage_converter.py` (using underscores per PRD p.22)\n2. Define the `DoclingToPaperMageConverter` class with appropriate initialization\n3. Implement skeleton methods for conversion in both directions\n4. Set up proper error handling structure using try-except blocks\n5. Add docstrings and type hints for all methods\n6. Create a simple validation method to check if the output conforms to PaperMage's expected format\n7. Testing approach: Write unit tests to verify the class structure and method signatures\n\n<info added on 2025-04-13T13:44:05.140Z>\n## Key PRD References:\n- **Module Purpose**: From \"Docling-to-PaperMage JSON Conversion Module\" (p.9-10):\n  - \"A critical piece for compatibility is translating the DoclingDocument output into the exact JSON structure that PaperMage previously produced.\"\n  - \"We will implement a dedicated module, e.g. api/json_converter.py, responsible for this transformation.\"\n  - \"When Docling returns a DoclingDocument (or its JSON), the converter will construct a Python dictionary matching Document.to_json() format of PaperMage.\"\n\n- **File Naming**: From \"System Architecture & Directory Layout\" (p.22):\n  - Use correct module name: `converters/docling_to_papermage_converter.py` with underscores, not camelCase.\n\n- **Converter Role**: From \"Docling-to-PaperMage JSON Conversion Module\" (p.9-10):\n  - \"The json_converter.py will serve as the single translation layer between Docling's internal representation and PaperMage's external format.\"\n  - \"By isolating this logic, we make it easy to adjust if needed and ensure that elsewhere in the code we can work with Docling types freely.\"\n\n- **PaperMage Format**: From \"Persistence (Serialization)\" (p.17):\n  - \"PaperMage supports saving a parsed Document to JSON and loading it back (Document.to_json() and Document.from_json()).\"\n  - \"The JSON output format will exactly match PaperMage v0.18+ (so that existing consumers of PaperMage JSON need not change).\"\n</info added on 2025-04-13T13:44:05.140Z>",
+          "status": "done",
+          "parentTaskId": 6
+        },
+        {
+          "id": 2,
+          "title": "Implement Docling Document Parsing Logic",
+          "description": "Create methods to parse and extract data from Docling's document representation, focusing on text content, structure, and metadata.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Implement methods to extract text items from DoclingDocument\n2. Create parsers for document sections, paragraphs, and text blocks\n3. Extract metadata from the Docling document (title, authors, etc.) as specified in PRD p.9-10\n4. Extract coordinate information to preserve spatial layout (Docling provides word and character bounding boxes)\n5. Handle document structure elements (headings, sections, etc.)\n6. Use the Adapter pattern to create a consistent interface for different document elements\n7. Testing approach: Create test cases with sample Docling documents to verify parsing accuracy\n\n<info added on 2025-04-13T13:44:22.872Z>\n## Key PRD References:\n- **Docling Document Structure**: From \"Multilayer Document Representation\" (p.11):\n  - \"The DoclingDocument model in docling-core provides a unified schema for text and layout, categorizing content into text items, tables, pictures, etc., with a tree structure for document hierarchy.\"\n  - \"Docling-core defines a unified DoclingDocument data model (using Pydantic) for structured content.\"\n\n- **Text Extraction**: From \"Docling-to-PaperMage JSON Conversion Module\" (p.9-10):\n  - \"This includes: assembling the full text content for the symbols field (Docling's DoclingDocument likely already has a way to get the full text in reading order – we will utilize that).\"\n  - \"We will iterate over Docling's word-level text units to collect each word's text and coordinates, formatting them as PaperMage word entities.\"\n\n- **Layout Extraction**: From \"Docling-to-PaperMage JSON Conversion Module\" (p.10):\n  - \"DoclingDocument might allow us to traverse sections or regions of the page layout – we'll convert those into our block representation.\"\n  - \"If instead rows meant text line rows, Docling's line-level extraction can be used. In either case, Docling's rich structure should allow extracting these without custom heuristics.\"\n\n- **Implementation Guidelines**: From \"Implementation Summaries\" (p.24-25):\n  - \"If docling-core's DoclingDocument starts storing a direction for text items, we can utilize it.\"\n  - \"We will leverage docling-core's JSON schema validation via docling-core to ensure our output is not malformed.\"\n</info added on 2025-04-13T13:44:22.872Z>",
+          "status": "done",
+          "parentTaskId": 6
+        },
+        {
+          "id": 3,
+          "title": "Develop PaperMage JSON Structure Mapping",
+          "description": "Create the mapping logic to transform parsed Docling elements into PaperMage's JSON format, ensuring all required layers are properly populated to match PaperMage v0.18+ exactly.",
+          "dependencies": [
+            2
+          ],
+          "details": "1. Define the PaperMage JSON schema structure as a Pydantic model for validation based on PaperMage v0.18+\n2. Implement mapping functions for each entity layer in PaperMage (tokens, words, sentences, blocks)\n3. Create transformation logic to convert Docling text items to PaperMage entities\n4. Implement coordinate transformation if coordinate systems differ\n5. Ensure proper nesting of entities according to PaperMage's hierarchical structure\n6. Use the Pipeline pattern to process document elements in stages\n7. Ensure the output exactly matches Document.to_json() format of PaperMage as specified in PRD\n8. Testing approach: Verify that sample documents are correctly transformed into valid PaperMage JSON\n\n<info added on 2025-04-13T13:44:46.193Z>\n## Key PRD References:\n- **JSON Structure Requirements**: From \"Output JSON Schema Compliance\" (p.17):\n  - \"Each layer of entities will be a key in the 'entities' dictionary in JSON, as PaperMage does.\"\n  - \"We will include 'symbols' (the full text) and 'metadata' at top level, same as PaperMage.\"\n  - JSON structure format: `{\"symbols\": \"<full text>\", \"entities\": {...}, \"metadata\": {...}}` with sub-structures like rows, tokens, words, blocks, sentences etc.\n\n- **Layer Mapping Instructions**: From \"Docling-to-PaperMage JSON Conversion Module\" (p.9-10):\n  - For Tokens/Words: \"We will iterate over Docling's word-level text units to collect each word's text and coordinates, formatting them as PaperMage word entities.\" \n  - For Blocks/Sections: \"Docling performs layout analysis, identifying text blocks (paragraphs, columns, section headers, etc.). It likely labels them or groups lines into higher-level segments. We will use Docling's layout grouping to fill the blocks list.\"\n  - For Rows: \"If the original PaperMage uses rows to represent table rows or text lines, we will derive those from Docling. Docling explicitly supports table structure extraction.\"\n\n- **Entity Representation**: From \"Coordinate Precision\" (p.15):\n  - \"For each Docling text item (line or word), retrieve its bounding box (Docling uses PDF coordinates natively). Construct Box objects for each span in our Document.\" \n  - \"Ensure that when an Entity spans multiple discontinuous areas (like a heading with a line break or a sentence across page break), multiple spans and boxes are stored just like PaperMage did.\"\n\n- **Validation**: From \"Output JSON Schema Compliance\" (p.17):\n  - \"We will run DoclingDocument.model_validate(json) from docling-core as a sanity check to ensure our JSON doesn't violate Docling's schema.\"\n</info added on 2025-04-13T13:44:46.193Z>",
+          "status": "done",
+          "parentTaskId": 6
+        },
+        {
+          "id": 4,
+          "title": "Handle Special Document Elements",
+          "description": "Implement specialized handling for complex document elements such as bibliography, citations, equations, tables, and figures.",
+          "dependencies": [
+            3
+          ],
+          "details": "1. Create dedicated parsers for bibliographic entries from Docling documents\n2. Implement citation extraction and formatting according to PaperMage requirements\n3. Develop equation handling with proper mathematical notation preservation\n4. Add support for tables with row/column structure mapping (Docling can detect tables per PRD p.9-10)\n5. Implement figure and image extraction with captions and references (Docling extracts bitmap figures with coordinates)\n6. Create specialized validators for each complex element type\n7. Testing approach: Test with documents containing various special elements to ensure proper conversion\n\n<info added on 2025-04-13T13:45:12.069Z>\n## Key PRD References:\n- **Bibliography and Citations**: From \"Bibliography and Citations\" (p.17):\n  - \"We will detect the start of the references section by looking for common headers like 'References' or by the layout classifier's output (if I-VILA classifies blocks as bibliography).\"\n  - \"Once identified, every line or paragraph until end-of-document can be grouped into individual reference entities.\"\n  - \"Citation markers in body text (e.g., '[12]' or 'Doe et al., 2020') might be detected via regex.\"\n  - \"We can populate a cite_marks layer (if desired, or include them as a type of inline entity in entities).\"\n\n- **Figures and Tables**: From \"Docling-to-PaperMage JSON Conversion Module\" (p.10):\n  - \"Docling already extracts images (bitmap figures) with coordinates and can classify them, and detect tables.\"\n  - \"If the CoreRecipe in PaperMage originally added figure/table annotations, our Docling pipeline will natively provide those.\"\n  - \"The converter will create figures and tables lists in the output JSON (if expected by consumers), containing analogous info (e.g., figure bounding boxes, possibly references to extracted images or captions if applicable).\"\n  - \"If PaperMage's JSON didn't include the actual image bytes (it likely did not, to keep JSON lightweight), we will not include them either.\"\n\n- **Equations and Special Elements**: From \"Tables and Lists\" (p.16):\n  - \"For tables, as noted, docling provides structured tables. We will output each table as an entity with potentially a nested structure or at least a reference to the cell contents.\"\n  - \"For lists, docling's output includes detection of list containers and list items. We will traverse Docling's content tree to find list structures and translate them into a flat lists layer similar to PaperMage.\"\n\n- **Relations Implementation**: From \"Entities and References\" (p.13):\n  - \"For relations (e.g. linking a citation mention to a bibliography entry), we will implement a simple matching.\"\n  - \"Each citation mark could have a relation referencing the corresponding bibliography entry entity (by index or id).\"\n</info added on 2025-04-13T13:45:12.069Z>",
+          "status": "done",
+          "parentTaskId": 6
+        },
+        {
+          "id": 5,
+          "title": "Implement Converter Module and CLI Interface",
+          "description": "Implement the final converter module following PRD specifications and create a command-line interface for the converter.",
+          "dependencies": [
+            3,
+            4
+          ],
+          "details": "1. Implement the converter module as specified in PRD (api/json_converter.py or converters/docling_to_papermage_converter.py)\n2. Ensure the converter constructs a Python dictionary matching Document.to_json() format of PaperMage\n3. Ensure metadata preservation as specified in PRD p.9-10\n4. Add comprehensive validation to ensure exact compatibility with PaperMage v0.18+ JSON format\n5. Implement a command-line interface with argparse for easy usage\n6. Add logging functionality to track conversion process and errors\n7. Create a simple progress indicator for large document conversions\n8. Testing approach: Create end-to-end tests that verify exact compatibility with PaperMage JSON format\n\n<info added on 2025-04-13T13:45:34.883Z>\n## Key PRD References:\n- **Reverse Conversion**: From \"Persistence (Serialization)\" (p.17):\n  - \"Likewise, a from_json() that creates our Document (or directly a DoclingDocument) from a saved JSON will be provided.\"\n  - \"We will validate this by round-tripping: doc = parser_docling.parse(pdf); json = doc.to_json(); doc2 = Document.from_json(json) – doc2 should be equivalent to doc.\"\n\n- **API Design**: From \"Library API Parity\" (p.18):\n  - \"The new implementation should expose a similar API for developers. For example, users should be able to do from papermage_docling import CoreRecipe; doc = CoreRecipe().run('file.pdf') analogous to the original.\"\n  - \"We will either mimic the CoreRecipe class or provide an equivalent function.\"\n  - \"The returned doc should behave like a PaperMage Document object (at least exposing attributes like .symbols, .layers, and iterables like .pages, .tokens, etc.).\"\n\n- **CLI Requirements**: From \"Extensibility\" (p.18):\n  - \"The design should allow adding new predictors easily, akin to PaperMage's plugin system for predictors.\"\n  - \"For instance, one could drop in a new Predictor class in the predictors/ directory, and the pipeline can pick it up (perhaps via a config or by explicitly coding it in CoreRecipe).\"\n\n- **Validation**: From \"Output JSON Schema Compliance\" (p.17):\n  - \"Additionally, we leverage Docling's JSON schema validation via docling-core to ensure our output is not malformed.\"\n  - \"Differences (if any) will be noted: e.g., Docling expects texts, tables, etc. at top level instead of our layered approach. Our primary commitment is to PaperMage's format, so if conflicts arise, we favor PaperMage format but keep as much alignment with Docling's schema as possible.\"\n</info added on 2025-04-13T13:45:34.883Z>",
+          "status": "done",
+          "parentTaskId": 6
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Implement FastAPI Service",
+      "description": "Create a web service API for the PaperMage-Docling implementation using FastAPI, following the modular structure and integration patterns specified in the implementation guide.",
+      "status": "done",
+      "dependencies": [
+        6
+      ],
+      "priority": "medium",
+      "details": "1. Create a modular FastAPI application structure with main.py, models.py, pipelines.py, api/ directory, and config.py\n2. Implement dedicated endpoints for both URL inputs (/convert/url) and file uploads (/convert/file)\n3. Create DocumentGateway for PDF conversion with both synchronous and asynchronous processing options\n4. Implement background task processing for long-running conversions using BackgroundTasks or Celery\n5. Add file upload handling for PDFs with size/page count limits\n6. Implement error handling for invalid inputs and malicious PDFs\n7. Add /health and /version endpoints\n8. Configure CORS following the patterns in the implementation guide\n9. Set up Uvicorn server configuration for direct execution\n10. Add request validation using Pydantic models for both URL and file upload inputs\n11. Implement proper response formatting compatible with docling-serve\n12. Add security measures including file size restrictions and dependency management\n13. Implement optional UI integration with Gradio (or alternatives) for testing purposes\n14. Add comprehensive configuration management, logging, and monitoring\n15. Implement rate limiting and scalability options for production deployment\n16. Fully document the API with OpenAPI/Swagger",
+      "testStrategy": "Create tests in tests/testapi.py that verify:\n1. API endpoints respond correctly and align with docling-serve conventions\n2. PDF parsing via API works as expected for both URL and file upload endpoints\n3. Error handling works for invalid inputs and oversized files\n4. Response format matches expected JSON structure\n5. Test with FastAPI's TestClient\n6. Verify security measures function correctly\n7. Test asynchronous endpoints and background task processing\n8. Verify resource management for large document processing\n9. Test CORS configuration and error handling patterns\n10. Validate both synchronous and asynchronous processing options\n11. Test rate limiting functionality under load conditions\n12. Verify background task status tracking and result retrieval\n13. Test optional Gradio UI integration when enabled\n14. Verify distributed processing with Celery when configured",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Set up FastAPI project structure and core application",
+          "description": "Create the initial FastAPI application following the PRD specifications, with api_service.py in the root directory and basic health/version endpoints.",
+          "dependencies": [],
+          "details": "1. Create `api_service.py` in the root directory as specified in the PRD\n2. Implement configuration handling with environment variables using Pydantic BaseSettings\n3. Create the FastAPI application instance within api_service.py\n4. Implement `/health` endpoint that returns service status\n5. Implement `/version` endpoint that returns application version\n6. Configure CORS middleware with appropriate settings for integration with docling-serve\n7. Set up basic logging middleware\n8. Add Uvicorn server configuration for direct execution\n9. Write unit tests for health and version endpoints using TestClient\n10. Test the application locally using `uvicorn api_service:app --reload`\n\n<info added on 2025-04-13T13:47:24.066Z>\n## Additional PRD Implementation References\n\n### API Structure & Configuration\n- From PRD p.26-27: The FastAPI app should define a POST `/parse_pdf` endpoint that accepts PDF file uploads and returns JSON output\n- Use Pydantic BaseSettings to handle configuration from environment variables including:\n  - `DEBUG_MODE`: Boolean flag for development features\n  - `ALLOWED_ORIGINS`: List of origins for CORS configuration\n  - `LOG_LEVEL`: Configurable logging level (default to \"INFO\")\n\n### Integration Requirements\n- When configuring CORS, ensure headers include:\n  - `Access-Control-Allow-Origin`\n  - `Access-Control-Allow-Credentials`\n  - `Access-Control-Allow-Methods`\n  - `Access-Control-Allow-Headers`\n- The `/version` endpoint should return a JSON object with at least:\n  ```json\n  {\n    \"version\": \"0.1.0\",\n    \"commit\": \"current-git-commit-hash\",\n    \"api_version\": \"v1\"\n  }\n  ```\n\n### Server Configuration\n- For Uvicorn configuration, consider:\n  - Multiple workers for CPU-bound PDF parsing operations\n  - Configure workers via environment variable (e.g., `WORKERS_COUNT`)\n  - Default to `workers=2` for basic deployment\n- From PRD p.46-47: PDF parsing is CPU-heavy, so multiple workers are recommended for production\n\n### Testing Considerations\n- Include edge case tests for the health endpoint under load\n- Test CORS configuration with mock requests from different origins\n</info added on 2025-04-13T13:47:24.066Z>\n\n<info added on 2025-04-13T20:40:29.965Z>\n<info added on 2025-04-14T09:15:32.104Z>\n## Project Structure Implementation Details\n\n### Directory Structure\nImplement the following directory structure:\n```\ndocling-pdf-parser/\n├── app/\n│   ├── __init__.py\n│   ├── main.py           # Application entry point\n│   ├── config.py         # Configuration settings\n│   ├── models.py         # Pydantic models\n│   ├── pipelines.py      # Document processing logic\n│   ├── api/              # API routes package\n│   │   ├── __init__.py\n│   │   ├── health.py     # Health/version endpoints\n│   │   └── pdf.py        # PDF processing endpoints\n│   └── utils/            # Utility functions\n│       └── __init__.py\n├── tests/                # Test directory\n│   └── ...\n└── api_service.py        # Entry point wrapper (as required by PRD)\n```\n\n### Implementation Examples\n\n#### 1. `app/config.py`\n```python\nfrom pydantic import BaseSettings, Field\nfrom typing import List, Optional\nimport os\n\nclass Settings(BaseSettings):\n    APP_NAME: str = \"docling-pdf-parser\"\n    APP_VERSION: str = \"0.1.0\"\n    API_VERSION: str = \"v1\"\n    DEBUG_MODE: bool = Field(False, env=\"DEBUG_MODE\")\n    ALLOWED_ORIGINS: List[str] = Field(\n        [\"http://localhost:3000\", \"https://docling.org\"], \n        env=\"ALLOWED_ORIGINS\"\n    )\n    LOG_LEVEL: str = Field(\"INFO\", env=\"LOG_LEVEL\")\n    WORKERS_COUNT: int = Field(2, env=\"WORKERS_COUNT\")\n    \n    # Get git commit hash if available\n    @property\n    def commit_hash(self) -> Optional[str]:\n        return os.environ.get(\"GIT_COMMIT_HASH\", None)\n    \n    class Config:\n        env_file = \".env\"\n        case_sensitive = True\n\nsettings = Settings()\n```\n\n#### 2. `app/main.py`\n```python\nfrom fastapi import FastAPI\nfrom fastapi.middleware.cors import CORSMiddleware\nimport logging\n\nfrom app.config import settings\nfrom app.api import health, pdf\n\n# Configure logging\nlogging.basicConfig(\n    level=getattr(logging, settings.LOG_LEVEL),\n    format=\"%(asctime)s - %(name)s - %(levelname)s - %(message)s\",\n)\nlogger = logging.getLogger(__name__)\n\ndef create_application() -> FastAPI:\n    application = FastAPI(\n        title=settings.APP_NAME,\n        description=\"PDF parsing service for Docling\",\n        version=settings.APP_VERSION,\n        debug=settings.DEBUG_MODE,\n    )\n    \n    # Configure CORS\n    application.add_middleware(\n        CORSMiddleware,\n        allow_origins=settings.ALLOWED_ORIGINS,\n        allow_credentials=True,\n        allow_methods=[\"*\"],\n        allow_headers=[\"*\"],\n    )\n    \n    # Include routers\n    application.include_router(health.router, tags=[\"Health\"])\n    application.include_router(pdf.router, prefix=f\"/{settings.API_VERSION}\", tags=[\"PDF\"])\n    \n    logger.info(f\"Application {settings.APP_NAME} initialized\")\n    return application\n\napp = create_application()\n```\n\n#### 3. `app/api/health.py`\n```python\nfrom fastapi import APIRouter, status\nfrom pydantic import BaseModel\nfrom app.config import settings\n\nrouter = APIRouter()\n\nclass HealthResponse(BaseModel):\n    status: str = \"ok\"\n\nclass VersionResponse(BaseModel):\n    version: str\n    api_version: str\n    commit: str = None\n\n@router.get(\"/health\", response_model=HealthResponse, status_code=status.HTTP_200_OK)\nasync def health_check():\n    \"\"\"Health check endpoint to verify service is running\"\"\"\n    return HealthResponse()\n\n@router.get(\"/version\", response_model=VersionResponse, status_code=status.HTTP_200_OK)\nasync def version():\n    \"\"\"Return application version information\"\"\"\n    return VersionResponse(\n        version=settings.APP_VERSION,\n        api_version=settings.API_VERSION,\n        commit=settings.commit_hash\n    )\n```\n\n#### 4. `api_service.py` (Entry point wrapper)\n```python\nimport uvicorn\nfrom app.main import app\nfrom app.config import settings\n\nif __name__ == \"__main__\":\n    uvicorn.run(\n        \"app.main:app\",\n        host=\"0.0.0.0\",\n        port=8000,\n        workers=settings.WORKERS_COUNT,\n        reload=settings.DEBUG_MODE,\n        log_level=settings.LOG_LEVEL.lower(),\n    )\n```\n\n### APIRouter Pattern Benefits\n- **Modularity**: Each router handles a specific domain of functionality\n- **Maintainability**: Easier to maintain and extend with clear separation of concerns\n- **Testing**: Facilitates isolated testing of API endpoints\n- **Versioning**: Simplifies API versioning through router prefixes\n\n### Middleware Configuration\nAdd request logging middleware for debugging:\n```python\n@app.middleware(\"http\")\nasync def log_requests(request, call_next):\n    if settings.DEBUG_MODE:\n        logger.debug(f\"Request: {request.method} {request.url}\")\n    response = await call_next(request)\n    return response\n```\n\n### Testing Approach\nFor the TestClient setup:\n```python\nfrom fastapi.testclient import TestClient\nfrom app.main import app\n\nclient = TestClient(app)\n\ndef test_health_endpoint():\n    response = client.get(\"/health\")\n    assert response.status_code == 200\n    assert response.json() == {\"status\": \"ok\"}\n\ndef test_version_endpoint():\n    response = client.get(\"/version\")\n    assert response.status_code == 200\n    data = response.json()\n    assert \"version\" in data\n    assert \"api_version\" in data\n```\n</info added on 2025-04-14T09:15:32.104Z>\n</info added on 2025-04-13T20:40:29.965Z>",
+          "status": "done",
+          "parentTaskId": 7
+        },
+        {
+          "id": 2,
+          "title": "Implement Pydantic models and validation schemas",
+          "description": "Define Pydantic models for request/response validation, including models for PDF parsing requests and responses that align with docling-serve conventions.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Create Pydantic models within api_service.py or in a separate models.py file\n2. Implement request models:\n   - `ParseRequest` model for parsing parameters\n   - File validation parameters (allowed extensions, max size)\n   - Optional processing parameters\n3. Implement response models:\n   - `ParseResponse` model for successful parsing results\n   - `ErrorResponse` model for standardized error responses\n   - `HealthResponse` and `VersionResponse` models\n4. Add field validators using Pydantic's validator decorators to ensure data integrity\n5. Implement custom error types and messages\n6. Create example instances for documentation\n7. Write unit tests for schema validation\n8. Ensure all models have proper docstrings and type hints\n9. Add JSON serialization/deserialization methods where needed\n10. Research docling-serve API conventions and align models accordingly\n\n<info added on 2025-04-13T13:47:49.745Z>\n## Additional Implementation Details for Pydantic Models\n\n### Request/Response Model Implementation\n\n1. **Health and Version Endpoints**:\n   ```python\n   class HealthResponse(BaseModel):\n       status: Literal[\"ok\"] = \"ok\"\n       timestamp: datetime = Field(default_factory=datetime.now)\n   \n   class VersionResponse(BaseModel):\n       version: str\n       build_date: Optional[datetime] = None\n       commit_hash: Optional[str] = None\n   ```\n\n2. **Document Schema Alignment**:\n   ```python\n   class DocumentJSONSchema(BaseModel):\n       symbols: str  # Full text content\n       metadata: Dict[str, Any]\n       pages: List[PageSchema]\n       # Additional fields as per docling-core's DoclingDocument\n   ```\n\n3. **Error Response Implementation**:\n   ```python\n   class ErrorDetail(BaseModel):\n       loc: Optional[List[Union[str, int]]] = None\n       msg: str\n       type: str\n\n   class ErrorResponse(BaseModel):\n       detail: Union[List[ErrorDetail], str]\n       status_code: int = 400\n   ```\n\n4. **Validation with docling-core**:\n   ```python\n   def validate_with_docling_core(data: Dict[str, Any]) -> bool:\n       try:\n           from docling_core.types import DoclingDocument\n           DoclingDocument.model_validate(data)\n           return True\n       except Exception as e:\n           logger.error(f\"Validation against DoclingDocument failed: {e}\")\n           return False\n   ```\n\n5. **Custom Error Handling**:\n   ```python\n   class PDFParsingError(Exception):\n       def __init__(self, message: str, status_code: int = 400):\n           self.message = message\n           self.status_code = status_code\n           super().__init__(self.message)\n   ```\n\n6. **File Validation**:\n   ```python\n   class FileValidationParams(BaseModel):\n       allowed_extensions: List[str] = [\"pdf\"]\n       max_size_bytes: int = 10 * 1024 * 1024  # 10MB default\n       \n       @validator(\"max_size_bytes\")\n       def validate_max_size(cls, v):\n           if v <= 0:\n               raise ValueError(\"File size limit must be positive\")\n           return v\n   ```\n\n7. **Parse Request with Batch Support**:\n   ```python\n   class ParseRequest(BaseModel):\n       file_validation: FileValidationParams = Field(default_factory=FileValidationParams)\n       batch_processing: bool = False\n       continue_on_error: bool = False\n       processing_options: Dict[str, Any] = Field(default_factory=dict)\n   ```\n</info added on 2025-04-13T13:47:49.745Z>\n\n<info added on 2025-04-13T20:41:00.870Z>\n<info added on 2025-04-14T09:15:23.456Z>\n## URL-based and File-based Request Models\n\n1. **URL-based Document Conversion**:\n   ```python\n   class ConvertURLRequest(BaseModel):\n       url: HttpUrl\n       conversion_options: Optional[Dict[str, Any]] = Field(default_factory=dict)\n       \n       @validator('url')\n       def validate_url(cls, v):\n           allowed_schemes = ['http', 'https']\n           if v.scheme not in allowed_schemes:\n               raise ValueError(f\"URL scheme must be one of {allowed_schemes}\")\n           return v\n   ```\n\n2. **File Upload Handling**:\n   ```python\n   # For file uploads, use FastAPI's UploadFile directly in endpoint definitions\n   # Example endpoint signature:\n   # async def convert_file(file: UploadFile, options: Optional[ConversionOptions] = None):\n   #     ...\n   \n   # Helper function for file validation\n   async def validate_upload_file(file: UploadFile, params: FileValidationParams) -> None:\n       extension = file.filename.split('.')[-1].lower() if file.filename else \"\"\n       if extension not in params.allowed_extensions:\n           raise ValueError(f\"File extension '{extension}' not allowed. Allowed: {params.allowed_extensions}\")\n       \n       # Check file size\n       content = await file.read()\n       await file.seek(0)  # Reset file position after reading\n       if len(content) > params.max_size_bytes:\n           raise ValueError(f\"File size exceeds maximum allowed size of {params.max_size_bytes} bytes\")\n   ```\n\n## Conversion Options Model\n\n```python\nclass ConversionOptions(BaseModel):\n    perform_ocr: bool = True\n    ocr_language: str = \"eng\"\n    extract_layout: bool = True\n    extract_tables: bool = True\n    extract_images: bool = False\n    confidence_threshold: float = Field(0.8, ge=0.0, le=1.0)\n    timeout_seconds: int = Field(300, ge=10, le=1800)\n    \n    @validator('ocr_language')\n    def validate_language_code(cls, v):\n        # Basic validation for language codes\n        if not re.match(r'^[a-z]{3}$', v):\n            raise ValueError(\"OCR language must be a 3-letter ISO language code\")\n        return v\n```\n\n## Enhanced Response Models\n\n```python\nclass ProcessingMetadata(BaseModel):\n    processing_time_ms: int\n    page_count: int\n    ocr_performed: bool\n    ocr_language: Optional[str] = None\n    extraction_date: datetime = Field(default_factory=datetime.now)\n    docling_version: str\n\nclass DocumentConversionResult(BaseModel):\n    document_id: str = Field(default_factory=lambda: str(uuid.uuid4()))\n    content: DocumentJSONSchema\n    metadata: ProcessingMetadata\n    warnings: List[str] = Field(default_factory=list)\n\nclass BatchConversionResponse(BaseModel):\n    results: List[DocumentConversionResult]\n    failed_items: List[Dict[str, Any]] = Field(default_factory=list)\n    total_processing_time_ms: int\n```\n\n## Detailed Error Response Models\n\n```python\nclass ErrorLocation(BaseModel):\n    file: Optional[str] = None\n    page: Optional[int] = None\n    component: Optional[str] = None\n\nclass DetailedErrorResponse(BaseModel):\n    error_code: str\n    message: str\n    location: Optional[ErrorLocation] = None\n    details: Optional[Dict[str, Any]] = None\n    traceback: Optional[str] = None\n    \n    class Config:\n        schema_extra = {\n            \"example\": {\n                \"error_code\": \"PARSING_ERROR\",\n                \"message\": \"Failed to parse PDF document\",\n                \"location\": {\"file\": \"document.pdf\", \"page\": 2},\n                \"details\": {\"reason\": \"Corrupted PDF structure\"}\n            }\n        }\n```\n\n## Serialization/Deserialization Methods\n\n```python\nclass DocumentJSONSchema(BaseModel):\n    # ... existing fields ...\n    \n    @classmethod\n    def from_docling_document(cls, doc: Any) -> \"DocumentJSONSchema\":\n        \"\"\"Convert a docling-core Document to this schema\"\"\"\n        return cls(\n            symbols=doc.symbols,\n            metadata=doc.metadata,\n            pages=[PageSchema.from_docling_page(p) for p in doc.pages]\n        )\n    \n    def to_docling_document(self) -> Dict[str, Any]:\n        \"\"\"Convert this schema to a format compatible with docling-core\"\"\"\n        return self.model_dump()\n    \n    def to_text(self) -> str:\n        \"\"\"Extract plain text from the document\"\"\"\n        return self.symbols\n```\n\n## Example Models for Documentation\n\n```python\nclass Config:\n    schema_extra = {\n        \"example\": {\n            \"url\": \"https://example.com/document.pdf\",\n            \"conversion_options\": {\n                \"perform_ocr\": True,\n                \"ocr_language\": \"eng\",\n                \"extract_tables\": True\n            }\n        }\n    }\n\n# Add to ConvertURLRequest\nConvertURLRequest.Config = Config\n\n# Example for DocumentConversionResult\nclass ResultConfig:\n    schema_extra = {\n        \"example\": {\n            \"document_id\": \"f47ac10b-58cc-4372-a567-0e02b2c3d479\",\n            \"content\": {\n                \"symbols\": \"Sample document text...\",\n                \"metadata\": {\"title\": \"Sample Document\"},\n                \"pages\": [{\"page_number\": 1, \"width\": 612, \"height\": 792}]\n            },\n            \"metadata\": {\n                \"processing_time_ms\": 1250,\n                \"page_count\": 3,\n                \"ocr_performed\": True,\n                \"ocr_language\": \"eng\",\n                \"extraction_date\": \"2025-04-14T09:15:23.456Z\",\n                \"docling_version\": \"1.0.0\"\n            }\n        }\n    }\n\nDocumentConversionResult.Config = ResultConfig\n```\n</info added on 2025-04-14T09:15:23.456Z>\n</info added on 2025-04-13T20:41:00.870Z>",
+          "status": "done",
+          "parentTaskId": 7
+        },
+        {
+          "id": 3,
+          "title": "Implement file upload handling and security measures",
+          "description": "Create the file upload functionality with proper validation, security measures, and temporary storage as specified in the PRD.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "1. Implement file upload handling using FastAPI's `UploadFile` class\n2. Add file validation for:\n   - MIME type verification (application/pdf)\n   - File size limits as specified in the PRD security section\n   - Page count limits to prevent DoS attacks\n   - File extension validation\n3. Create a secure temporary storage mechanism for uploaded files\n4. Implement automatic cleanup of temporary files after processing\n5. Add file metadata extraction (size, name, creation date)\n6. Implement error handling for corrupted or malicious files\n7. Create utility functions for file path management\n8. Write unit tests for file upload and validation\n9. Test with various PDF files (valid, invalid, and potentially malicious)\n10. Implement dependency checking to ensure all dependencies are up to date\n\n<info added on 2025-04-13T13:48:15.351Z>\nHere's the additional information to add to the subtask:\n\n```\n## PRD Implementation References:\n\n### File Upload Endpoint Example:\n```python\n@app.post('/parse', response_model=DocumentJSONSchema)\nasync def parse_document(file: UploadFile = File(...)):\n    # read file contents\n    pdf_bytes = await file.read()\n    # Option 1: Write to temp file\n    with open('temp.pdf', 'wb') as f:\n        f.write(pdf_bytes)\n    doc = parser.parse('temp.pdf')\n    # Option 2: Use BytesIO stream if supported\n    # doc = parser.parse(io.BytesIO(pdf_bytes))\n    return doc.to_json()\n```\n\n### Security Implementation Notes:\n- Set file size limit to prevent DoS attacks (FastAPI config: `app = FastAPI(max_upload_size=10_000_000)` for 10MB limit)\n- Implement page count validation (max 500 pages by default per PRD)\n- Use Python's `magic` library for MIME type verification beyond extension checking\n- Consider using `tempfile` module for secure temporary storage with automatic cleanup\n\n### Performance Considerations:\n- Optimize for PRD target: parsing 10-page scientific paper in under 2 seconds\n- Implement memory usage monitoring for file processing\n- Use streaming processing where possible to minimize memory footprint\n\n### Error Handling Strategy:\n- Implement specific exception handling for common file issues:\n  - Corrupted PDF structure: Return 400 with detailed message\n  - Password-protected files: Return 400 with \"Protected file not supported\" message\n  - Oversized files: Return 413 (Payload Too Large)\n  - Malformed content: Return 422 (Unprocessable Entity)\n```\n</info added on 2025-04-13T13:48:15.351Z>",
+          "status": "done",
+          "parentTaskId": 7
+        },
+        {
+          "id": 4,
+          "title": "Implement PDF parsing endpoint and service layer",
+          "description": "Create the core /parse_pdf endpoint that processes uploaded PDF files using the PaperMage-Docling implementation, following docling-serve conventions.",
+          "dependencies": [
+            2,
+            3
+          ],
+          "details": "1. Implement the core parsing functionality that interfaces with PaperMage-Docling\n2. Create the `/parse_pdf` endpoint that accepts PDF uploads (following docling-serve naming conventions)\n3. Research docling-serve's API routes and align with their conventions\n4. Add request validation using the Pydantic models\n5. Implement proper response formatting with standardized structure\n6. Add error handling for parsing failures\n7. Implement asynchronous processing for better performance\n8. Add detailed logging throughout the parsing process\n9. Write unit and integration tests for the parsing endpoint\n10. Implement proper dependency injection for the parser service\n11. Ensure the endpoint can handle large jobs by integrating with docling-serve's worker distribution system if needed\n\n<info added on 2025-04-13T13:48:37.771Z>\n## Key PRD References:\n- **Parse Endpoint**: From \"Implementation Summaries\" (p.26-27):\n  - \"api_service.py: This file sets up the FastAPI application for serving the parser as a web service.\"\n  - \"It will likely create a FastAPI app, define an endpoint (e.g., POST /parse_pdf) which accepts a PDF file upload and returns the JSON output.\"\n  - Complete example of the endpoint implementation:\n    ```python\n    @app.post('/parse', response_model=DocumentJSONSchema)\n    async def parse_document(file: UploadFile = File(...)):\n        # read file contents\n        pdf_bytes = await file.read()\n        # write to a temp file or pass bytes to parser (docling-parse might accept stream)\n        with open('temp.pdf', 'wb') as f:\n            f.write(pdf_bytes)\n        doc = parser.parse('temp.pdf')\n        return doc.to_json()\n    ```\n\n- **Integration with Parser**: From \"Implementation Summaries\" (p.26-27):\n  - \"Implementation-wise, it will instantiate the DoclingParser and maybe keep it around (though stateless is fine since DoclingParser has no heavy state).\"\n  - \"We will ensure that this is similar to docling-serve's container (docling-serve might use gunicorn/uvicorn too). Users can thus deploy this container to serve the parsing API.\"\n\n- **Docling-serve Compatibility**: From \"Docling-serve Integration\" (p.19):\n  - \"If needed, we will align with docling-serve's API routes (for example, docling-serve might have a route /convert where you POST a document and get JSON). We can follow that convention so that clients/tools built for Docling can use our service interchangeably.\"\n  - \"If large jobs need to be handled, we could integrate Starlette BackgroundTasks or Celery in future. For now, the architecture handles requests synchronously within FastAPI workers.\"\n\n- **Documentation**: From \"FastAPI Uvicorn Details\" (p.47):\n  - \"FastAPI's robustness covers concurrency and error handling, which we'll utilize\"\n  - \"For the API service, \"hitting http://localhost:8000/docs will show the Swagger UI (FastAPI auto docs), where one can test the /parse endpoint with a PDF.\"\n</info added on 2025-04-13T13:48:37.771Z>\n\n<info added on 2025-04-13T20:41:40.478Z>\n<info added on 2025-04-14T09:23:15.000Z>\n## Expanded Endpoint Implementation\n\n### Dual Endpoint Approach\nImplement both URL-based and file-based document conversion endpoints:\n```python\n@router.post(\"/convert/url\", response_model=ConvertResponse)\nasync def convert_from_url(request: ConvertURLRequest, background_tasks: BackgroundTasks):\n    job_id = str(uuid.uuid4())\n    background_tasks.add_task(pipelines.process_url_documents, request.urls, job_id)\n    return {\"job_id\": job_id, \"status\": \"processing\"}\n\n@router.post(\"/convert/file\", response_model=ConvertResponse)\nasync def convert_from_file(background_tasks: BackgroundTasks, files: list[UploadFile] = File(...)):\n    job_id = str(uuid.uuid4())\n    background_tasks.add_task(pipelines.process_file_documents, files, job_id)\n    return {\"job_id\": job_id, \"status\": \"processing\"}\n\n@router.get(\"/job/{job_id}\", response_model=JobStatusResponse)\nasync def get_job_status(job_id: str):\n    status = job_store.get_job_status(job_id)\n    if not status:\n        raise HTTPException(status_code=404, detail=\"Job not found\")\n    return status\n```\n\n### Service Layer in `pipelines.py`\n```python\nclass DocumentProcessor:\n    def __init__(self, parser: DoclingParser):\n        self.parser = parser\n        self.temp_dir = Path(\"./temp\")\n        self.temp_dir.mkdir(exist_ok=True)\n        \n    async def process_url_documents(self, urls: List[str], job_id: str) -> None:\n        results = []\n        for url in urls:\n            try:\n                # Download file from URL\n                temp_file = self.temp_dir / f\"{uuid.uuid4()}.pdf\"\n                await self._download_file(url, temp_file)\n                \n                # Process the document\n                doc = self.parser.parse(str(temp_file))\n                results.append({\"url\": url, \"document\": doc.to_json(), \"status\": \"success\"})\n                \n                # Clean up\n                temp_file.unlink(missing_ok=True)\n            except Exception as e:\n                results.append({\"url\": url, \"error\": str(e), \"status\": \"failed\"})\n        \n        # Store results\n        job_store.update_job(job_id, {\"results\": results, \"status\": \"completed\"})\n    \n    async def process_file_documents(self, files: List[UploadFile], job_id: str) -> None:\n        results = []\n        for file in files:\n            try:\n                # Validate file\n                if not self._validate_file(file):\n                    results.append({\"filename\": file.filename, \"error\": \"Invalid file format\", \"status\": \"failed\"})\n                    continue\n                \n                # Save to temp file\n                temp_file = self.temp_dir / f\"{uuid.uuid4()}.pdf\"\n                content = await file.read()\n                temp_file.write_bytes(content)\n                \n                # Process the document\n                doc = self.parser.parse(str(temp_file))\n                results.append({\"filename\": file.filename, \"document\": doc.to_json(), \"status\": \"success\"})\n                \n                # Clean up\n                temp_file.unlink(missing_ok=True)\n            except Exception as e:\n                results.append({\"filename\": file.filename, \"error\": str(e), \"status\": \"failed\"})\n        \n        # Store results\n        job_store.update_job(job_id, {\"results\": results, \"status\": \"completed\"})\n    \n    def _validate_file(self, file: UploadFile) -> bool:\n        # Check file size (e.g., limit to 20MB)\n        if file.size > 20 * 1024 * 1024:\n            return False\n        \n        # Check file extension\n        allowed_extensions = ['.pdf', '.PDF']\n        return any(file.filename.endswith(ext) for ext in allowed_extensions)\n    \n    async def _download_file(self, url: str, dest_path: Path) -> None:\n        async with aiohttp.ClientSession() as session:\n            async with session.get(url) as response:\n                if response.status != 200:\n                    raise Exception(f\"Failed to download file: HTTP {response.status}\")\n                content = await response.read()\n                dest_path.write_bytes(content)\n```\n\n### Error Handling for Document Processing\nImplement comprehensive error handling for common PDF issues:\n\n```python\nclass DocumentProcessingError(Exception):\n    \"\"\"Base exception for document processing errors\"\"\"\n    pass\n\nclass PasswordProtectedError(DocumentProcessingError):\n    \"\"\"Exception raised when PDF is password protected\"\"\"\n    pass\n\nclass CorruptedPDFError(DocumentProcessingError):\n    \"\"\"Exception raised when PDF structure is corrupted\"\"\"\n    pass\n\nclass UnsupportedFormatError(DocumentProcessingError):\n    \"\"\"Exception raised when document format is not supported\"\"\"\n    pass\n\n# In the parser wrapper:\ndef parse_with_error_handling(self, file_path: str) -> Document:\n    try:\n        return self.parser.parse(file_path)\n    except Exception as e:\n        error_msg = str(e).lower()\n        if \"password\" in error_msg:\n            raise PasswordProtectedError(\"Document is password protected\")\n        elif \"corrupted\" in error_msg or \"invalid pdf\" in error_msg:\n            raise CorruptedPDFError(\"Document structure is corrupted\")\n        elif \"unsupported\" in error_msg:\n            raise UnsupportedFormatError(\"Document format is not supported\")\n        else:\n            raise DocumentProcessingError(f\"Failed to parse document: {e}\")\n```\n\n### Job Store Implementation\n```python\nclass JobStore:\n    def __init__(self):\n        self.jobs = {}  # In production, use Redis or another persistent store\n    \n    def create_job(self, job_id: str) -> None:\n        self.jobs[job_id] = {\"status\": \"processing\", \"created_at\": datetime.now().isoformat()}\n    \n    def update_job(self, job_id: str, data: dict) -> None:\n        if job_id in self.jobs:\n            self.jobs[job_id].update(data)\n            self.jobs[job_id][\"updated_at\"] = datetime.now().isoformat()\n    \n    def get_job_status(self, job_id: str) -> Optional[dict]:\n        return self.jobs.get(job_id)\n\njob_store = JobStore()\n```\n\n### Celery Integration Outline\n```python\n# celery_config.py\nfrom celery import Celery\n\ncelery_app = Celery(\n    \"papermage_tasks\",\n    broker=\"redis://localhost:6379/0\",\n    backend=\"redis://localhost:6379/0\"\n)\n\n# tasks.py\nfrom celery_config import celery_app\nfrom pipelines import DocumentProcessor\n\n@celery_app.task\ndef process_url_document(url: str, job_id: str):\n    processor = DocumentProcessor()\n    return processor.process_url_document(url, job_id)\n\n@celery_app.task\ndef process_file_document(file_path: str, original_filename: str, job_id: str):\n    processor = DocumentProcessor()\n    return processor.process_file_document(file_path, original_filename, job_id)\n```\n\n### Pydantic Models for Request/Response\n```python\nclass ConvertURLRequest(BaseModel):\n    urls: List[str]\n    \n    @validator('urls')\n    def validate_urls(cls, urls):\n        if not urls:\n            raise ValueError(\"At least one URL must be provided\")\n        for url in urls:\n            if not url.startswith(('http://', 'https://')):\n                raise ValueError(f\"Invalid URL format: {url}\")\n        return urls\n\nclass DocumentResult(BaseModel):\n    status: Literal[\"success\", \"failed\"]\n    document: Optional[Dict] = None\n    error: Optional[str] = None\n    filename: Optional[str] = None\n    url: Optional[str] = None\n\nclass ConvertResponse(BaseModel):\n    job_id: str\n    status: Literal[\"processing\", \"completed\", \"failed\"]\n    results: Optional[List[DocumentResult]] = None\n\nclass JobStatusResponse(BaseModel):\n    job_id: str\n    status: Literal[\"processing\", \"completed\", \"failed\"]\n    created_at: str\n    updated_at: Optional[str] = None\n    results: Optional[List[DocumentResult]] = None\n```\n</info added on 2025-04-14T09:23:15.000Z>\n</info added on 2025-04-13T20:41:40.478Z>",
+          "status": "done",
+          "parentTaskId": 7
+        },
+        {
+          "id": 5,
+          "title": "Implement security, rate limiting, and finalize API",
+          "description": "Add security features, rate limiting, comprehensive error handling, and finalize the API for production use and integration with docling-serve.",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "details": "1. Implement rate limiting middleware using an appropriate algorithm (e.g., token bucket)\n2. Add configurable limits for:\n   - Requests per minute per client\n   - Concurrent processing limits\n   - Maximum file size restrictions as specified in the PRD\n   - Maximum page count restrictions\n3. Implement proper HTTP status codes and error responses\n4. Add request ID tracking for better debugging\n5. Enhance logging with structured logs and request context\n6. Implement comprehensive exception handling\n7. Add API documentation using FastAPI's automatic docs\n8. Create custom OpenAPI schema with examples\n9. Implement proper shutdown handlers for graceful termination\n10. Write load tests to verify performance under stress\n11. Finalize Uvicorn production configuration\n12. Create deployment documentation for integration with docling-serve\n13. Implement security scanning for dependencies to avoid known vulnerabilities\n\n<info added on 2025-04-13T13:49:04.297Z>\n## Implementation Notes for Security, Rate Limiting, and API Finalization\n\n### Security Implementation Details\n- Implement file validation that checks both MIME type and file signatures to prevent malicious files disguised as PDFs\n- Use Python's `pdfminer.six` security features to disable JavaScript execution and external references in PDFs\n- Set up a sandbox environment for PDF parsing using containerization techniques\n- Implement timeout mechanisms for PDF parsing operations (default: 30 seconds per document)\n- Add file size limits as specified in PRD (recommended: 10MB default, configurable via environment)\n- Add page count limits as specified in PRD (recommended: 100 pages default, configurable via environment)\n\n### Rate Limiting Implementation\n- Use `slowapi` or FastAPI's built-in middleware with Redis backend for distributed rate limiting\n- Implement tiered rate limiting:\n  - 60 requests/minute for anonymous users\n  - 300 requests/minute for authenticated users\n  - Configurable via environment variables\n- Add CPU usage monitoring to dynamically adjust worker count based on system load\n- Implement backpressure mechanisms to prevent system overload during peak usage\n\n### Logging and Monitoring Specifics\n- Implement structured JSON logging with the following fields:\n  - `request_id`: UUID for request tracking\n  - `client_id`: Client identifier (if authenticated)\n  - `document_size`: Size of uploaded PDF in bytes\n  - `page_count`: Number of pages in the document\n  - `processing_time_ms`: Time taken to process the request\n  - `error_type`: Classification of error (if any)\n- Set up log rotation to prevent disk space issues\n- Add Prometheus metrics for key performance indicators:\n  - Request latency percentiles (p50, p95, p99)\n  - Error rates by type\n  - Resource utilization (memory, CPU)\n\n### Deployment Integration with docling-serve\n- Create health check endpoints (`/health` and `/readiness`) for Kubernetes/Docker integration\n- Document environment variable configuration to match docling-serve conventions\n- Implement graceful shutdown with a 30-second timeout to complete in-flight requests\n- Add Docker Compose configuration for local testing with docling-serve\n\n### Error Handling Enhancements\n- Implement custom exception classes for different error scenarios:\n  - `PDFParsingError`: For issues with PDF structure or content\n  - `RateLimitExceededError`: For rate limit violations\n  - `ResourceExhaustedError`: For system resource constraints\n  - `ValidationError`: For invalid input parameters\n- Map exceptions to appropriate HTTP status codes (400, 413, 429, 503)\n- Include troubleshooting information in error responses for easier debugging\n</info added on 2025-04-13T13:49:04.297Z>\n\n<info added on 2025-04-13T20:42:08.602Z>\n## Scalability and Production Deployment Enhancements\n\n### Distributed Processing Architecture\n- Implement Celery task queue integration with Redis backend:\n  ```python\n  from celery import Celery\n  \n  celery_app = Celery(\n      \"pdf_processor\",\n      broker=os.getenv(\"REDIS_URL\", \"redis://localhost:6379/0\"),\n      backend=os.getenv(\"REDIS_URL\", \"redis://localhost:6379/0\")\n  )\n  ```\n- Add asynchronous processing endpoint that returns a task ID for later result retrieval\n- Implement worker auto-scaling based on queue length metrics\n- Create dedicated task status endpoint (`/api/v1/tasks/{task_id}`) for checking processing status\n\n### Uvicorn Worker Configuration\n- Configure Uvicorn with Gunicorn for production deployments:\n  ```bash\n  gunicorn -w $(nproc) -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app\n  ```\n- Implement worker pre-loading of ML models to reduce cold start times\n- Add worker lifecycle hooks for proper resource cleanup\n\n### Optional Gradio UI Integration\n- Implement conditional Gradio UI mounting based on environment variable:\n  ```python\n  if os.getenv(\"ENABLE_UI\", \"false\").lower() == \"true\":\n      import gradio as gr\n      \n      def process_pdf(file):\n          # Process file using the API\n          return results\n      \n      ui = gr.Interface(\n          fn=process_pdf,\n          inputs=gr.File(label=\"Upload PDF\"),\n          outputs=gr.JSON(label=\"Extracted Data\"),\n          title=\"PDF Processing Interface\",\n          description=\"Upload a PDF to extract structured data\"\n      )\n      \n      # Mount Gradio app to FastAPI\n      app.mount(\"/ui\", gr.routes.App.create_app(ui))\n  ```\n- Add demo mode with sample PDFs for testing\n- Include UI-specific rate limiting to prevent abuse\n\n### Configuration Management System\n- Implement layered configuration with environment-specific overrides:\n  ```python\n  class Settings(BaseSettings):\n      app_name: str = \"pdf-processor\"\n      debug: bool = False\n      allowed_origins: List[str] = [\"http://localhost:3000\"]\n      max_file_size_mb: int = 10\n      max_pages: int = 100\n      rate_limit_anon: int = 60\n      rate_limit_auth: int = 300\n      enable_ui: bool = False\n      \n      class Config:\n          env_file = \".env\"\n          env_file_encoding = \"utf-8\"\n  ```\n- Add configuration validation on startup\n- Create separate configuration profiles for development, testing, and production\n\n### Health Monitoring System\n- Implement detailed health check endpoints:\n  - `/health/liveness`: Basic server availability check\n  - `/health/readiness`: Checks all dependencies (Redis, database, etc.)\n  - `/health/metrics`: Prometheus-compatible metrics endpoint\n- Add system resource monitoring with periodic logging:\n  ```python\n  @app.on_event(\"startup\")\n  async def start_resource_monitor():\n      asyncio.create_task(monitor_system_resources())\n      \n  async def monitor_system_resources():\n      while True:\n          metrics = {\n              \"cpu_percent\": psutil.cpu_percent(),\n              \"memory_percent\": psutil.virtual_memory().percent,\n              \"disk_percent\": psutil.disk_usage(\"/\").percent,\n              \"open_files\": len(psutil.Process().open_files()),\n              \"active_threads\": len(psutil.Process().threads()),\n          }\n          logger.info(\"System resources\", extra=metrics)\n          await asyncio.sleep(60)\n  ```\n\n### Docker Production Configuration\n- Create multi-stage Dockerfile to minimize image size:\n  ```dockerfile\n  FROM python:3.9-slim as builder\n  WORKDIR /app\n  COPY requirements.txt .\n  RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt\n  \n  FROM python:3.9-slim\n  WORKDIR /app\n  COPY --from=builder /app/wheels /wheels\n  RUN pip install --no-cache /wheels/*\n  COPY . .\n  \n  HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\\n    CMD curl -f http://localhost:8000/health/liveness || exit 1\n    \n  CMD [\"gunicorn\", \"-w\", \"4\", \"-k\", \"uvicorn.workers.UvicornWorker\", \"-b\", \"0.0.0.0:8000\", \"app.main:app\"]\n  ```\n- Include Docker Compose configuration for local development with all dependencies\n- Add container resource limits and requests for Kubernetes deployments\n</info added on 2025-04-13T20:42:08.602Z>",
+          "status": "done",
+          "parentTaskId": 7
+        },
+        {
+          "id": 6,
+          "title": "Implement modular project structure and DocumentGateway",
+          "description": "Restructure the project to follow the modular layout described in the implementation guide and implement the DocumentGateway for PDF conversion.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Restructure the project to follow the modular layout with:\n   - main.py: Entry point for the application\n   - models.py: Pydantic models for request/response validation\n   - pipelines.py: Processing pipelines for document conversion\n   - api/: Directory for API route definitions\n   - config.py: Configuration management\n2. Implement DocumentGateway class for PDF conversion in the FastAPI layer\n3. Create both synchronous and asynchronous processing options in the gateway\n4. Implement proper dependency injection for the gateway\n5. Add configuration for gateway initialization\n6. Create utility functions for gateway operations\n7. Implement error handling specific to the gateway\n8. Write unit tests for the gateway functionality\n9. Document the gateway API and usage patterns\n10. Ensure the gateway handles resource management properly",
+          "status": "done",
+          "parentTaskId": 7
+        },
+        {
+          "id": 7,
+          "title": "Implement dedicated endpoints for URL and file uploads",
+          "description": "Create separate endpoints for processing documents from URLs (/convert/url) and file uploads (/convert/file) as described in the implementation guide.",
+          "dependencies": [
+            2,
+            6
+          ],
+          "details": "1. Implement `/convert/url` endpoint that accepts URL inputs via POST request\n2. Create Pydantic model for URL validation and processing options\n3. Implement URL fetching with proper error handling and timeout configuration\n4. Add security validation for URL inputs (allowed domains, protocols, etc.)\n5. Implement `/convert/file` endpoint for file uploads\n6. Ensure both endpoints use the DocumentGateway for processing\n7. Implement consistent response formatting across both endpoints\n8. Add detailed logging for both URL and file processing\n9. Create comprehensive error handling for URL-specific issues (404, timeout, etc.)\n10. Write unit and integration tests for both endpoints\n11. Document both endpoints in the API documentation",
+          "status": "done",
+          "parentTaskId": 7
+        },
+        {
+          "id": 8,
+          "title": "Implement background task processing",
+          "description": "Add support for background task processing for long-running conversions using BackgroundTasks or Celery as described in the implementation guide.",
+          "dependencies": [
+            4,
+            6,
+            7
+          ],
+          "details": "1. Implement background task processing using FastAPI's BackgroundTasks\n2. Add option for Celery integration for more complex workloads\n3. Create task queue management for processing large documents\n4. Implement status tracking for background tasks\n5. Add endpoints for checking task status\n6. Implement result storage and retrieval for completed tasks\n7. Add timeout and error handling for background tasks\n8. Implement resource management for concurrent background tasks\n9. Create cleanup mechanisms for completed or failed tasks\n10. Write unit tests for background task processing\n11. Document background task usage and configuration",
+          "status": "done",
+          "parentTaskId": 7
+        },
+        {
+          "id": 9,
+          "title": "Implement optional UI integration",
+          "description": "Add optional UI integration with Gradio (or alternatives) for testing purposes as described in the implementation guide.",
+          "dependencies": [
+            7,
+            8
+          ],
+          "details": "1. Implement optional UI integration using Gradio\n2. Create simple interface for uploading files and viewing results\n3. Add URL input option in the UI\n4. Implement result visualization for processed documents\n5. Add configuration option to enable/disable the UI\n6. Ensure the UI works with both synchronous and background processing\n7. Implement error display in the UI\n8. Add basic styling and usability improvements\n9. Create documentation for using the UI\n10. Ensure the UI is properly isolated from production endpoints",
+          "status": "done",
+          "parentTaskId": 7
+        },
+        {
+          "id": 10,
+          "title": "Implement comprehensive configuration, logging, and monitoring",
+          "description": "Add detailed configuration management, logging, and monitoring capabilities as described in the implementation guide.",
+          "dependencies": [
+            1,
+            6
+          ],
+          "details": "1. Implement comprehensive configuration management using Pydantic BaseSettings\n2. Add support for environment variables, configuration files, and command-line arguments\n3. Implement structured logging with configurable levels and formats\n4. Add request context to logs for better traceability\n5. Implement performance monitoring for document processing\n6. Add resource usage tracking (memory, CPU, disk)\n7. Implement metrics collection for key performance indicators\n8. Add health check endpoints with detailed status information\n9. Implement alerting mechanisms for critical issues\n10. Create documentation for configuration options and monitoring setup",
+          "status": "done",
+          "parentTaskId": 7
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Implement Visualization Tools",
+      "description": "Create visualization utilities to render parsed documents with annotations.",
+      "status": "done",
+      "dependencies": [
+        6
+      ],
+      "priority": "low",
+      "details": "1. Create visualizers/docling_visual.py (note the underscore, not camelCase)\n2. Implement functions to render PDF pages with entity boxes overlaid\n3. Add color coding for different entity types\n4. Create HTML or image output options\n5. Add interactive visualization if time permits (optional as per PRD priority)\n6. Ensure RTL text is displayed correctly in visualizations\n7. Add options to filter which layers are visualized\n8. Implement simple command-line interface for visualization\n9. Support visual validation of layout mapping as mentioned in PRD",
+      "testStrategy": "Create tests in tests/testvisualtests/testrasterandoverlay.py that verify:\n1. Visualization correctly renders entity boxes\n2. Colors and labels are applied correctly\n3. Output images or HTML are generated as expected\n4. Manual inspection of visualization output for a test document\n5. Include specific tests for RTL text rendering\n6. Add manual validation tests for visual correctness as specified in PRD\n7. Test layout mapping visualization to ensure pages and boxes align correctly on PDF images",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create Base Visualization Module Structure",
+          "description": "Set up the foundational structure for the visualization module with proper architecture following the Model-View-Controller pattern to ensure modularity and maintainability.",
+          "dependencies": [],
+          "details": "1. Create visualizers/docling_visual.py (with underscore as specified in PRD) with a modular structure\n2. Define base classes for different visualization types (PDF, HTML, image)\n3. Implement configuration handling for visualization settings (colors, filters, etc.)\n4. Set up logging and error handling mechanisms\n5. Create utility functions for color management with colorblind-friendly palettes\n6. Testing approach: Write unit tests for configuration handling and utility functions\n\n<info added on 2025-04-13T13:49:57.982Z>\n## Key PRD References:\n- **File Naming and Location**: From \"System Architecture & Directory Layout\" (p.22-23):\n  - The file should be named `visualizers/docling_visual.py` (with underscore, not camelCase).\n  - \"We might not integrate it into the main container by default, but we can have a separate script or just instructions to run Gradio locally.\"\n\n- **Module Purpose**: From \"Testing & Validation\" (p.45):\n  - \"Beyond automated tests, we will do manual validation on a handful of documents, especially focusing on visual correctness.\"\n  - \"Render output (maybe using PaperMage's visualizer or some custom small script) to see that pages, boxes align on an image of the PDF.\"\n\n- **Implementation Approach**: The PRD suggests a gradual approach:\n  - \"Visual validation tools should be implemented to verify the text appears correctly when rendered.\"\n  - \"This is more for our satisfaction that nothing is wildly off in layout mapping.\"\n  - \"For figures, we might provide figure references in JSON with coordinates and maybe allowed separate extraction (the specific approach can mirror PaperMage's handling of images).\"\n\n- **Priority Consideration**: From the task priority level:\n  - Visualization tools are \"low\" priority, suggesting focus on basic functionality first, with more advanced features being optional.\n</info added on 2025-04-13T13:49:57.982Z>",
+          "status": "done",
+          "parentTaskId": 8
+        },
+        {
+          "id": 2,
+          "title": "Implement PDF Rendering with Entity Annotations",
+          "description": "Create functionality to render PDF pages with entity boxes overlaid, ensuring proper positioning and rendering of annotations on the document.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Use libraries like PyMuPDF (fitz) or pdf2image for PDF handling\n2. Implement functions to calculate bounding box coordinates for entities\n3. Create overlay mechanism for drawing boxes on PDF pages\n4. Add support for different line styles and thicknesses for entity boundaries\n5. Ensure proper handling of document scaling and coordinate transformations\n6. Consider using or adapting PaperMage's visualizer as mentioned in the PRD\n7. Testing approach: Create test cases with sample PDFs containing various entity types and verify correct rendering of boxes\n\n<info added on 2025-04-13T13:50:24.934Z>\n## Additional Implementation Details\n\n### Coordinate System Handling\n- Implement coordinate system transformation functions to handle the PDF's bottom-left origin (0,0) versus possible top-left origin in rendering libraries\n- Create utility functions to convert between coordinate systems when necessary\n- Include safeguards to detect and warn about coordinate inconsistencies\n\n### Box Representation Implementation\n- Define a Box class/structure with x0, y0, x1, y1 attributes as specified in the PRD\n- Include helper methods for calculating width/height, center point, and area\n- Implement intersection detection between boxes for validation purposes\n\n### Rendering Considerations\n- Support different zoom levels while maintaining coordinate precision\n- Implement color-coding for different entity types (configurable)\n- Add optional display of entity labels near or within boxes\n- Include toggle functionality to show/hide specific entity types\n\n### Validation Features\n- Add visual alignment verification tools to compare rendered boxes with underlying text\n- Implement boundary checking to flag boxes that extend beyond page dimensions\n- Create a debug mode that displays coordinate values on hover for easier verification\n\n### Performance Optimization\n- Consider caching rendered pages to improve performance when navigating documents\n- Implement lazy loading for large documents to reduce memory usage\n- Add progressive rendering for complex pages with many annotations\n</info added on 2025-04-13T13:50:24.934Z>",
+          "status": "done",
+          "parentTaskId": 8
+        },
+        {
+          "id": 3,
+          "title": "Implement Entity Type Color Coding and Filtering",
+          "description": "Add color coding for different entity types and implement filtering options to control which annotation layers are displayed in visualizations.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "1. Create a color mapping system for entity types with configurable color schemes\n2. Implement filter mechanisms to show/hide specific entity types\n3. Add legend generation for entity types and their corresponding colors\n4. Support opacity settings for overlapping annotations\n5. Ensure RTL text compatibility by detecting and properly handling text direction as specified in PRD\n6. Testing approach: Test with documents containing multiple entity types and verify correct color application and filtering functionality\n\n<info added on 2025-04-13T13:50:41.809Z>\n## PRD References for Entity Type Color Coding and Filtering\n\n### Interactive UI Requirements\n- Implement keyboard shortcuts for toggling entity visibility (e.g., Alt+1 for first entity type)\n- Support zoom and pan functionality while maintaining color coding and filtering state\n- Enable navigation between document pages with persistent filter settings\n\n### Entity Highlighting Implementation\n- Design color scheme with accessibility considerations (color blindness compatibility)\n- Implement hover states to show additional entity metadata\n- Support hierarchical filtering (e.g., filter by major category and subcategories)\n- Ensure sufficient contrast between entity colors and document background\n\n### HTML Integration Notes\n- Create modular color/filter components that can be reused across different visualization contexts\n- Implement filter UI using standard web components for compatibility\n- Design filter persistence using URL parameters to enable sharing of specific views\n\n### Debug Capabilities\n- Add toggle for confidence score visualization alongside entity coloring\n- Implement entity overlap detection with visual indicators for potential conflicts\n- Include comparison mode to highlight differences between annotation versions\n- Support export of current filter/color configuration for reproducibility\n</info added on 2025-04-13T13:50:41.809Z>",
+          "status": "done",
+          "parentTaskId": 8
+        },
+        {
+          "id": 4,
+          "title": "Develop HTML and Image Output Options",
+          "description": "Create functionality to export visualizations as HTML documents or image files, providing flexible output options for different use cases.",
+          "dependencies": [
+            2,
+            3
+          ],
+          "details": "1. Implement HTML export with CSS styling for annotations\n2. Add image export functionality (PNG, JPEG, SVG) with configurable resolution\n3. Create templates for HTML output with responsive design\n4. Implement proper text embedding and font handling for various languages\n5. Add metadata inclusion in exports (timestamp, document info, etc.)\n6. Ensure output can be used for manual validation as specified in PRD\n7. Testing approach: Generate outputs in different formats and verify visual accuracy and metadata inclusion",
+          "status": "done",
+          "parentTaskId": 8
+        },
+        {
+          "id": 5,
+          "title": "Create Command-Line Interface and Interactive Visualization",
+          "description": "Implement a command-line interface for the visualization tools and add interactive visualization features for enhanced user experience.",
+          "dependencies": [
+            3,
+            4
+          ],
+          "details": "1. Create a CLI using argparse or click with options for all visualization settings\n2. Implement batch processing for multiple documents\n3. Add interactive visualization using libraries like Plotly or Bokeh (as an optional feature per PRD priority)\n4. Implement tooltips showing entity details on hover\n5. Add zoom and pan functionality for large documents\n6. Create interactive filtering controls for entity types\n7. Include specific functionality for layout mapping validation as mentioned in PRD\n8. Testing approach: Test CLI with various parameter combinations and verify interactive features work across different browsers",
+          "status": "done",
+          "parentTaskId": 8
+        },
+        {
+          "id": 6,
+          "title": "Implement Visual Validation Tools for Layout Mapping",
+          "description": "Create specific visualization tools to verify layout mapping accuracy as mentioned in the PRD.",
+          "dependencies": [
+            2,
+            4
+          ],
+          "details": "1. Implement visualization that overlays extracted layout information on PDF images\n2. Create visual comparison tools to verify pages and boxes align correctly\n3. Add specific support for validating RTL text rendering\n4. Implement visual indicators for potential layout mapping issues\n5. Create simple reports highlighting potential layout problems\n6. Testing approach: Use sample documents with known layout features and verify correct visualization",
+          "status": "done",
+          "parentTaskId": 8
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Create End-to-End Tests",
+      "description": "Implement comprehensive end-to-end tests comparing PaperMage-Docling output with original PaperMage.",
+      "status": "done",
+      "dependencies": [
+        6,
+        7
+      ],
+      "priority": "high",
+      "details": "1. Create tests/testendtoend.py with full pipeline tests\n2. Obtain reference outputs from original PaperMage for comparison\n3. Implement tests that compare our output to PaperMage reference outputs\n4. Add tests for different document types (academic papers, multi-column layouts, etc.)\n5. Create tests specifically for RTL documents\n6. Test performance on larger documents\n7. Implement tolerance for minor numerical differences in coordinates\n8. Test both direct API calls and HTTP API endpoints\n9. Document any acceptable differences from original PaperMage",
+      "testStrategy": "Run end-to-end tests with various document types and verify:\n1. Output structure matches PaperMage's format\n2. Entity counts and content match expected values\n3. RTL text is handled correctly\n4. Performance meets requirements\n5. No regressions in functionality compared to original PaperMage",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Set up E2E Testing Framework and Environment",
+          "description": "Create the foundation for end-to-end testing by setting up the testing framework, directory structure, and test environment configuration that will allow for systematic comparison between PaperMage-Docling and original PaperMage outputs.",
+          "dependencies": [],
+          "details": "1. Create a new `tests/testendtoend.py` file and establish the basic testing structure using pytest\n2. Set up test fixtures that initialize both PaperMage and PaperMage-Docling with identical configurations\n3. Create helper functions for comparing outputs with configurable tolerance levels for numerical differences\n4. Implement utility functions to load and process test documents\n5. Set up a mechanism to capture and log differences between outputs\n6. Configure pytest to generate detailed HTML reports using pytest-html\n7. Create a test configuration file to manage test parameters and tolerance settings\n8. Add documentation for the testing approach and framework design\n9. Testing approach: Use pytest's parametrization to run the same tests with different configurations",
+          "status": "done",
+          "parentTaskId": 9
+        },
+        {
+          "id": 2,
+          "title": "Implement Core Document Processing Comparison Tests",
+          "description": "Create tests that compare the fundamental document processing capabilities between PaperMage-Docling and original PaperMage, focusing on token extraction, text recognition, and basic document structure analysis.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Obtain reference outputs from original PaperMage for a set of simple test documents\n2. Implement test cases that compare token extraction results (position, text content, metadata)\n3. Create tests for document structure analysis (paragraphs, sections, headings)\n4. Add tests for basic text recognition accuracy and completeness\n5. Implement tolerance handling for minor numerical differences in coordinates and dimensions\n6. Test both direct API calls and HTTP API endpoints for core functionality\n7. Document any acceptable differences between implementations\n8. Testing approach: Use data-driven testing to run the same tests against multiple document samples\n9. Implement detailed assertion messages that clearly identify where and how outputs differ",
+          "status": "done",
+          "parentTaskId": 9
+        },
+        {
+          "id": 3,
+          "title": "Develop Layout and Multi-column Document Tests",
+          "description": "Create specialized tests for complex document layouts, focusing on multi-column documents, tables, figures, and other complex layout elements that are challenging for document understanding systems.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "1. Collect a diverse set of multi-column academic papers and documents with complex layouts\n2. Obtain reference outputs from original PaperMage for these documents\n3. Implement tests that verify correct column detection and reading order\n4. Create tests for table structure recognition and extraction\n5. Add tests for figure detection and caption association\n6. Implement tests for footnotes, headers, and footers handling\n7. Test layout-specific features like margin detection and page segmentation\n8. Document any layout-specific differences between implementations\n9. Testing approach: Use visual comparison tools to highlight layout differences in addition to data structure comparisons",
+          "status": "done",
+          "parentTaskId": 9
+        },
+        {
+          "id": 4,
+          "title": "Implement Special Document Type Tests",
+          "description": "Create tests for special document types including RTL (Right-to-Left) documents, documents with mixed languages, and documents with special characters or non-standard fonts.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "1. Collect test documents with RTL text (Arabic, Hebrew) and mixed language content\n2. Obtain reference outputs from original PaperMage for these special documents\n3. Implement tests specifically for RTL text direction handling\n4. Create tests for mixed language detection and processing\n5. Add tests for special character rendering and recognition\n6. Implement tests for documents with non-standard fonts\n7. Test handling of documents with mixed RTL and LTR content\n8. Document any differences in special document type handling\n9. Testing approach: Focus on character-level and word-level comparisons rather than just layout for these specialized tests",
+          "status": "done",
+          "parentTaskId": 9
+        },
+        {
+          "id": 5,
+          "title": "Develop Performance and Scale Tests",
+          "description": "Create tests that evaluate the performance characteristics and scalability of PaperMage-Docling compared to the original PaperMage, focusing on processing time, memory usage, and behavior with large documents.",
+          "dependencies": [
+            1,
+            2,
+            3
+          ],
+          "details": "1. Collect a set of large documents (50+ pages) and documents with high-resolution images\n2. Obtain reference outputs and performance metrics from original PaperMage\n3. Implement tests that measure and compare processing time for different document sizes\n4. Create tests that monitor memory usage during document processing\n5. Add tests for batch processing capabilities and efficiency\n6. Implement stress tests with multiple concurrent document processing requests\n7. Test performance degradation patterns as document complexity increases\n8. Document performance differences and trade-offs between implementations\n9. Testing approach: Use pytest-benchmark for consistent performance measurements and generate comparative performance reports",
+          "status": "done",
+          "parentTaskId": 9
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Create Docker Deployment and Documentation",
+      "description": "Create Docker configuration and comprehensive documentation for the project.",
+      "status": "pending",
+      "dependencies": [
+        7,
+        9
+      ],
+      "priority": "medium",
+      "details": "1. Create Dockerfile for containerized deployment\n2. Configure Docker to install all dependencies and run the API service\n3. Update README.md with comprehensive usage instructions\n4. Add examples for both library and API usage\n5. Document RTL support and any differences from original PaperMage\n6. Create sample notebooks or scripts demonstrating usage\n7. Add deployment instructions for various environments\n8. Document configuration options and environment variables\n9. Set up GitHub Actions for CI/CD\n10. Create release process documentation",
+      "testStrategy": "Verify Docker deployment works by:\n1. Building the Docker image\n2. Running the container\n3. Testing API endpoints through the container\n4. Verifying documentation accuracy by following the instructions\n5. Testing CI/CD pipeline with a sample commit",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create Dockerfile with Multi-Stage Build",
+          "description": "Develop an efficient Dockerfile using multi-stage build pattern to minimize image size and improve security. Configure it to install all dependencies and run the API service properly.",
+          "dependencies": [],
+          "details": "1. Create a `.dockerignore` file to exclude unnecessary files (node_modules, .git, etc.)\n2. Implement a multi-stage Dockerfile with build and production stages\n3. Use specific version tags for base images (avoid 'latest' tag)\n4. Configure proper working directory and file copying\n5. Set up non-root user for security\n6. Add HEALTHCHECK instruction to monitor container health\n7. Expose only necessary ports\n8. Configure proper CMD or ENTRYPOINT for running the API service\n9. Test the Dockerfile by building and running locally\n10. Verify all dependencies are correctly installed and the service runs as expected",
+          "status": "pending",
+          "parentTaskId": 10
+        },
+        {
+          "id": 2,
+          "title": "Set Up Docker Compose for Development and Production",
+          "description": "Create a Docker Compose configuration to simplify deployment in different environments and handle multi-container setups if needed.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Create a `docker-compose.yml` file with service definitions\n2. Configure environment-specific overrides with docker-compose.override.yml\n3. Set up appropriate environment variables\n4. Configure resource limits (memory, CPU) for containers\n5. Set up volume mappings for persistent data\n6. Configure networking between containers if needed\n7. Add healthcheck configurations\n8. Set up proper restart policies\n9. Test the compose setup in development mode\n10. Verify production mode configuration works as expected\n11. Document any differences between development and production setups",
+          "status": "pending",
+          "parentTaskId": 10
+        },
+        {
+          "id": 3,
+          "title": "Create Comprehensive README and Usage Documentation",
+          "description": "Update the project README.md with comprehensive usage instructions, examples, and documentation of features including RTL support and differences from the original PaperMage.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "1. Create a clear project overview section\n2. Document installation instructions (both with and without Docker)\n3. Add usage examples for both library and API usage\n4. Create a dedicated section for RTL support features\n5. Document differences from original PaperMage\n6. Add screenshots or diagrams where helpful\n7. Include troubleshooting section for common issues\n8. Document all configuration options and environment variables\n9. Add badges for build status, version, etc.\n10. Ensure documentation follows a logical structure with proper headings\n11. Have someone else review the documentation for clarity",
+          "status": "pending",
+          "parentTaskId": 10
+        },
+        {
+          "id": 4,
+          "title": "Develop Sample Notebooks and Usage Examples",
+          "description": "Create sample Jupyter notebooks, scripts, and code examples demonstrating various use cases and features of the project.",
+          "dependencies": [
+            3
+          ],
+          "details": "1. Create a dedicated 'examples' directory in the repository\n2. Develop at least 3 Jupyter notebooks showing different use cases\n3. Create sample Python scripts for common operations\n4. Add examples for API usage with curl/Postman/etc.\n5. Include examples of configuration options\n6. Create examples demonstrating RTL support\n7. Add examples for any advanced features\n8. Ensure examples are well-commented and follow best practices\n9. Test all examples to ensure they work as documented\n10. Link to these examples from the main README.md",
+          "status": "pending",
+          "parentTaskId": 10
+        },
+        {
+          "id": 5,
+          "title": "Set Up CI/CD with GitHub Actions",
+          "description": "Configure GitHub Actions for continuous integration and deployment, including Docker image building, testing, and release process automation.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "1. Create GitHub Actions workflow files in `.github/workflows/`\n2. Set up CI workflow to build and test the Docker image on pull requests\n3. Configure CD workflow to build and push Docker images to a registry on releases\n4. Add vulnerability scanning for Docker images using tools like Trivy\n5. Set up automated testing within the CI pipeline\n6. Configure release automation to generate release notes\n7. Add status badges to README.md\n8. Create documentation for the release process\n9. Document how to use the CI/CD pipeline for contributors\n10. Set up notifications for CI/CD failures\n11. Test the complete workflow to ensure it functions correctly",
+          "status": "pending",
+          "parentTaskId": 10
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Refactor Processing Pipeline to Use DoclingDocument Structure End-to-End",
+      "description": "Update the core document processing pipeline to use Docling's native DoclingDocument structure throughout all internal operations, eliminating unnecessary format conversions except at API boundaries.",
+      "details": "This refactoring task requires modifying all components in the processing pipeline to work directly with DoclingDocument structures instead of converting between formats at multiple points. Steps include:\n\n1. Identify all points in the codebase where document format conversions occur (especially to/from PaperMage format)\n2. Modify all predictors to accept DoclingDocument as input and produce outputs compatible with DoclingDocument\n3. Update parsers to work natively with DoclingDocument structure\n4. Refactor any utility functions that assume non-Docling formats\n5. Implement conversion to PaperMage format only at API boundaries where external compatibility is required\n6. Update any internal data storage or caching mechanisms to work with DoclingDocument\n7. Ensure all document attributes and metadata are properly preserved throughout the pipeline\n8. Optimize for performance by eliminating redundant data transformations\n9. Document the new data flow architecture\n\nThe refactoring should maintain complete functional equivalence while simplifying the internal architecture. Special attention should be paid to edge cases where document structure might differ between formats. Any assumptions about document structure embedded in the current code should be identified and addressed.",
+      "testStrategy": "Testing should verify both correctness and performance improvements:\n\n1. Create comprehensive unit tests for each refactored component that verify they correctly process DoclingDocument structures\n2. Develop integration tests that trace document flow through the entire pipeline\n3. Implement comparison tests that process the same input through both old and new pipelines and verify identical outputs\n4. Create specific tests for edge cases including:\n   - Documents with complex nested structures\n   - Documents with special characters or unusual formatting\n   - Very large documents to test performance at scale\n   - Documents with minimal content to test boundary conditions\n5. Measure and document performance metrics before and after refactoring:\n   - Processing time for standard document sets\n   - Memory usage during processing\n   - CPU utilization\n6. Verify API compatibility by ensuring external interfaces continue to work as expected\n7. Implement regression tests that verify all existing functionality remains intact\n\nAll tests should be automated and incorporated into the CI/CD pipeline to prevent future regressions.",
+      "status": "done",
+      "dependencies": [
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "priority": "high",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Analyze Document Format Conversions and Create Conversion Map",
+          "description": "Identify all points in the codebase where document format conversions occur, especially to/from PaperMage format. Create a comprehensive conversion map documenting the current data flow and transformation points.",
+          "dependencies": [],
+          "details": "1. Use static code analysis tools to identify all import statements related to document format classes\n2. Create a directed graph showing the current document flow through the pipeline, marking all conversion points\n3. Document the attributes and metadata that need to be preserved during conversions\n4. Identify edge cases where document structure differs between formats\n5. Create a detailed report with:\n   - All conversion functions/methods\n   - Input/output formats for each pipeline component\n   - Data loss or transformation issues in current conversions\n   - Conversion frequency metrics to identify performance bottlenecks\n6. Testing approach: Create unit tests that validate the conversion map by tracing sample documents through the pipeline and verifying all conversion points are correctly identified",
+          "status": "done",
+          "parentTaskId": 11
+        },
+        {
+          "id": 2,
+          "title": "Implement DoclingDocument as Core Data Structure with Adapters",
+          "description": "Define the DoclingDocument structure as the central data model and implement adapter classes for necessary format conversions at API boundaries only.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Enhance the DoclingDocument class using Pydantic for validation:\n   ```python\n   from pydantic import BaseModel, Field\n   from typing import List, Optional\n   \n   class DoclingDocument(BaseModel):\n       texts: List[TextItem] = Field(default_factory=list)\n       tables: List[TableItem] = Field(default_factory=list)\n       pictures: List[PictureItem] = Field(default_factory=list)\n       key_value_items: List[KeyValueItem] = Field(default_factory=list)\n       metadata: Optional[dict] = Field(default_factory=dict)\n   ```\n2. Implement adapter classes using the Adapter pattern for external format conversions:\n   ```python\n   class PaperMageAdapter:\n       @staticmethod\n       def to_papermage(doc: DoclingDocument) -> PaperMageFormat:\n           # Convert DoclingDocument to PaperMage format\n           pass\n           \n       @staticmethod\n       def from_papermage(pm_doc: PaperMageFormat) -> DoclingDocument:\n           # Convert PaperMage format to DoclingDocument\n           pass\n   ```\n3. Create utility functions for format validation and error handling\n4. Implement serialization/deserialization methods for DoclingDocument (JSON, XML, etc.)\n5. Testing approach: Create comprehensive unit tests for the adapters with various document types, ensuring lossless conversion at boundaries",
+          "status": "done",
+          "parentTaskId": 11
+        },
+        {
+          "id": 3,
+          "title": "Refactor Predictors and Parsers to Use DoclingDocument Natively",
+          "description": "Modify all predictors and parsers in the pipeline to accept DoclingDocument as input and produce outputs compatible with DoclingDocument structure.",
+          "dependencies": [
+            2
+          ],
+          "details": "1. Update all predictor classes to accept DoclingDocument directly:\n   ```python\n   class DocumentPredictor:\n       def predict(self, doc: DoclingDocument) -> DoclingDocument:\n           # Process document and return enhanced DoclingDocument\n           return processed_doc\n   ```\n2. Refactor parsers to work with DoclingDocument structure:\n   ```python\n   class DocumentParser:\n       def parse(self, doc: DoclingDocument) -> DoclingDocument:\n           # Parse document content and update DoclingDocument\n           return parsed_doc\n   ```\n3. Implement a Pipeline pattern for sequential processing:\n   ```python\n   class DoclingPipeline:\n       def __init__(self, steps: List[Callable[[DoclingDocument], DoclingDocument]]):\n           self.steps = steps\n           \n       def process(self, doc: DoclingDocument) -> DoclingDocument:\n           result = doc\n           for step in self.steps:\n               result = step(result)\n           return result\n   ```\n4. Update any utility functions that assume non-Docling formats\n5. Testing approach: Create integration tests that verify each predictor and parser correctly processes DoclingDocument objects and maintains document integrity",
+          "status": "done",
+          "parentTaskId": 11
+        },
+        {
+          "id": 4,
+          "title": "Update Storage and Caching Mechanisms for DoclingDocument",
+          "description": "Refactor internal data storage and caching mechanisms to work natively with DoclingDocument structure, optimizing for performance and eliminating redundant transformations.",
+          "dependencies": [
+            2,
+            3
+          ],
+          "details": "1. Update database models and ORM mappings to store DoclingDocument structures:\n   ```python\n   class DocumentModel(Base):\n       __tablename__ = 'documents'\n       \n       id = Column(Integer, primary_key=True)\n       content = Column(JSON)  # Store serialized DoclingDocument\n       \n       @property\n       def docling_document(self) -> DoclingDocument:\n           return DoclingDocument.parse_obj(json.loads(self.content))\n           \n       @docling_document.setter\n       def docling_document(self, doc: DoclingDocument):\n           self.content = doc.json()\n   ```\n2. Implement caching mechanisms optimized for DoclingDocument:\n   ```python\n   class DocumentCache:\n       def __init__(self, cache_size=100):\n           self.cache = LRUCache(cache_size)\n           \n       def get(self, doc_id: str) -> Optional[DoclingDocument]:\n           return self.cache.get(doc_id)\n           \n       def put(self, doc_id: str, doc: DoclingDocument) -> None:\n           self.cache.put(doc_id, doc)\n   ```\n3. Optimize serialization/deserialization for performance\n4. Implement batch processing capabilities for large document sets\n5. Testing approach: Benchmark performance before and after changes, verify data integrity through cache/storage cycles with complex documents",
+          "status": "done",
+          "parentTaskId": 11
+        },
+        {
+          "id": 5,
+          "title": "Implement End-to-End Integration and Documentation",
+          "description": "Connect all refactored components into a cohesive pipeline, implement format conversion only at API boundaries, and document the new architecture.",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "details": "1. Assemble the complete pipeline using the refactored components:\n   ```python\n   from docling.pipeline.simple_pipeline import SimplePipeline\n   \n   # Initialize the pipeline\n   pipeline = SimplePipeline()\n   \n   # Add processing steps\n   pipeline.add_step(document_converter)\n   pipeline.add_step(document_parser)\n   pipeline.add_step(document_predictor)\n   ```\n2. Implement API boundary conversions using the adapter pattern:\n   ```python\n   @app.post('/process')\n   def process_document(document: PaperMageFormat):\n       # Convert at API boundary\n       docling_doc = PaperMageAdapter.from_papermage(document)\n       \n       # Process using native DoclingDocument\n       result = pipeline.process(docling_doc)\n       \n       # Convert back at API boundary\n       return PaperMageAdapter.to_papermage(result)\n   ```\n3. Create comprehensive documentation including:\n   - Architecture diagrams showing the new data flow\n   - API reference for DoclingDocument structure\n   - Guidelines for extending the pipeline\n   - Performance considerations and benchmarks\n4. Implement logging and monitoring throughout the pipeline\n5. Testing approach: Create end-to-end integration tests that verify complete document processing with various input formats and edge cases",
+          "status": "done",
+          "parentTaskId": 11
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Implement API Adapter Layer for PaperMage Format Conversion",
+      "description": "Refactor and enhance our existing PaperMageAdapter implementation from Task 11 into a dedicated adapter layer that converts between Docling's native document structures and PaperMage-compatible formats, implementing the API gateway pattern to intercept and transform all external requests and responses.",
+      "details": "This task involves refactoring and extending our existing conversion code from task 11 into a formal API adapter layer that acts as a boundary between Docling's internal system and external PaperMage consumers. We've already implemented basic conversion between DoclingDocument and PaperMage format in Task 11, and now we need to formalize that into a proper adapter layer following best practices.\n\nWe're refactoring existing code, not creating completely new functionality. The focus is on making our existing adapter more robust, configurable, and extensible. The enhanced adapter should:\n\n1. Refactor the existing PaperMageAdapter implementation into a set of adapter classes that implement the API gateway pattern\n2. Enhance the existing bidirectional conversion logic between Docling's native document structures and PaperMage formats\n3. Add interceptors for all incoming API requests to convert PaperMage format payloads to Docling's native format before passing to the core system\n4. Add interceptors for all outgoing API responses to convert Docling's native format to PaperMage format before sending to external consumers\n5. Improve error handling for format conversion failures\n6. Ensure the adapter layer is configurable and can be enabled/disabled as needed\n7. Document all format differences and conversion rules\n8. Implement logging for debugging conversion issues\n9. Ensure the adapter doesn't impact performance significantly by optimizing conversion algorithms\n10. Design the adapter to be extensible for future format changes in either system\n\nThe implementation should follow the Single Responsibility Principle, keeping all format conversion logic isolated to this component. Use factory patterns or strategy patterns if multiple format versions need to be supported. This task builds upon the foundation established in task 11, formalizing and enhancing our approach rather than creating entirely new functionality.",
+      "testStrategy": "Testing should verify both the functional correctness and the architectural integrity of the adapter layer:\n\n1. Unit tests:\n   - Test each conversion function with various document structures\n   - Test edge cases (empty documents, maximum size documents, documents with all possible field combinations)\n   - Test error handling for malformed input formats\n   - Verify compatibility with existing conversion tests from task 11\n\n2. Integration tests:\n   - Verify the adapter correctly intercepts and transforms API requests\n   - Confirm the adapter correctly transforms responses before they reach external consumers\n   - Test the full request/response cycle with mock PaperMage consumers\n   - Ensure refactored code maintains compatibility with existing integrations\n\n3. Performance tests:\n   - Measure and establish performance benchmarks for the conversion process\n   - Verify the adapter doesn't introduce significant latency (define acceptable thresholds)\n   - Test with large documents and high concurrency scenarios\n   - Compare performance metrics with the previous implementation\n\n4. Compatibility tests:\n   - Create a test suite with real-world PaperMage document examples\n   - Verify backward compatibility with existing PaperMage consumers\n   - Test with different versions of PaperMage formats if applicable\n   - Ensure the refactored adapter produces identical output to the previous implementation\n\n5. Isolation tests:\n   - Verify that changes to the adapter don't affect core system functionality\n   - Confirm that format changes can be implemented by only modifying the adapter layer\n\nImplement a CI pipeline that runs these tests automatically when changes are made to either the adapter or the core document structures.",
+      "status": "done",
+      "dependencies": [
+        11
+      ],
+      "priority": "high",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Define Document Interfaces and Data Transfer Objects",
+          "description": "Create the core interfaces that define both Docling's native document structures and PaperMage-compatible formats. Implement Data Transfer Objects (DTOs) to standardize communication between systems.",
+          "dependencies": [],
+          "details": "1. Define the `DoclingDocument` interface with properties like id, content, and metadata.\n2. Define the `PaperMageDocument` interface with properties like documentId, body, and properties.\n3. Create request/response DTOs such as `ConversionRequest` and `ConversionResponse` to standardize API communication.\n4. Document all format differences between the two systems.\n5. Implement validation schemas for both document formats.\n6. Write unit tests to validate the interface definitions.\n7. Testing approach: Create test fixtures with sample documents in both formats to verify interface compatibility.\n\n<info added on 2025-04-13T20:21:02.167Z>\nAdditional information to add:\n\nThis subtask involves refactoring and extending existing code rather than creating new implementations from scratch. We'll build upon:\n\n- The existing `DoclingDocument` interface from `docling_core` library\n- The `PaperMageAdapter` implementation from Task 11\n\nKey focus areas:\n\n1. Formalize and extend interfaces based on our existing implementations, ensuring they capture all necessary properties and methods\n2. Extract conversion logic from the adapter into well-defined DTOs that can be used across our API endpoints\n3. Document the format differences already handled by our adapter, creating a comprehensive reference for future development\n4. Implement JSON Schema or similar validation for both document formats to improve error handling and conversion reliability\n\nImplementation notes:\n- Use TypeScript interfaces with proper JSDoc comments for all definitions\n- Consider using a validation library like Zod or Joi for schema definitions\n- Create a mapping document that explicitly shows field transformations between systems\n- Ensure backward compatibility with existing code that uses these interfaces\n</info added on 2025-04-13T20:21:02.167Z>",
+          "status": "done",
+          "parentTaskId": 12
+        },
+        {
+          "id": 2,
+          "title": "Refactor and Enhance Existing Bidirectional Conversion Logic",
+          "description": "Refactor the existing PaperMageAdapter implementation into core adapter classes that handle the transformation logic between Docling and PaperMage formats, following the Adapter pattern.",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Refactor the existing PaperMageAdapter code into a more structured `DoclingToPaperMageAdapter` class with static methods for bidirectional conversion.\n2. Enhance the existing `toPaperMage()` method to handle more edge cases and document types.\n3. Enhance the existing `toDocling()` method to improve robustness and compatibility.\n4. Add deep conversion logic for nested objects and arrays if not already implemented.\n5. Implement proper error handling for format conversion failures.\n6. Add logging for debugging conversion issues.\n7. Optimize conversion algorithms for performance.\n8. Testing approach: Write comprehensive unit tests with edge cases (empty documents, large documents, malformed documents) to ensure robust conversion while maintaining compatibility with existing behavior.\n\n<info added on 2025-04-13T20:21:13.390Z>\nThe existing subtask already covers most of the requested points, but I'll provide additional clarification about refactoring the existing adapter from Task 11 and making it production-ready:\n\nThis subtask builds directly on the PaperMageAdapter implementation from Task 11, transforming it from a proof-of-concept into a production-ready component. The refactoring should:\n\n1. Preserve the core functionality while improving the architecture to follow best practices for the Adapter pattern\n2. Implement comprehensive error recovery strategies (not just error detection) including fallback conversion paths for problematic document sections\n3. Add structured logging with different verbosity levels to aid in troubleshooting conversion issues in production\n4. Implement performance profiling to identify and optimize bottlenecks in the conversion process\n5. Create a test suite that verifies both functional correctness and performance characteristics under load\n6. Document any limitations or known edge cases that cannot be fully handled\n\nThe enhanced adapter should be able to gracefully handle partial conversion failures without losing document data, making it resilient in production environments.\n</info added on 2025-04-13T20:21:13.390Z>",
+          "status": "done",
+          "parentTaskId": 12
+        },
+        {
+          "id": 3,
+          "title": "Create API Gateway Interceptor Middleware",
+          "description": "Implement middleware that intercepts all incoming API requests and outgoing responses to apply the appropriate format conversions.",
+          "dependencies": [
+            1,
+            2
+          ],
+          "details": "1. Create an `ApiGatewayInterceptor` class that implements the API Gateway pattern.\n2. Implement request interceptor middleware to convert incoming PaperMage payloads to Docling format.\n3. Implement response interceptor middleware to convert outgoing Docling responses to PaperMage format.\n4. Add content-type detection to automatically determine the format of incoming requests.\n5. Implement error handling for malformed requests.\n6. Add detailed logging for request/response transformation.\n7. Testing approach: Use integration tests with mock requests/responses to verify the interceptor correctly transforms data in both directions.\n\n<info added on 2025-04-13T20:21:27.801Z>\nHere's the additional information to enhance the subtask:\n\n```\n8. Refactor the existing format conversion logic from DoclingApiService into the new ApiGatewayInterceptor to centralize all conversion operations.\n\n9. Design the interceptor to be configurable with different adapter strategies (PaperMageAdapter, potential future adapters) through dependency injection.\n\n10. Implement a consistent request processing pipeline:\n   - Pre-request: Format detection → Validation → Conversion to Docling format\n   - Post-response: Result validation → Conversion to client format → Response enrichment\n\n11. Create extension methods for HttpContext to simplify adapter usage in controllers:\n   ```csharp\n   // Example extension method\n   public static class HttpContextExtensions \n   {\n       public static T GetConvertedBody<T>(this HttpContext context) \n       {\n           return context.Items[\"ConvertedBody\"] as T;\n       }\n   }\n   ```\n\n12. Implement adapter registration in the service container with appropriate lifetime scope (singleton).\n\n13. Add metrics collection for conversion operations:\n   - Conversion time\n   - Success/failure rates\n   - Payload sizes before/after conversion\n\n14. Create a standardized error response format for conversion failures that includes:\n   - Error code\n   - Detailed message\n   - Validation errors (if applicable)\n   - Suggestion for fixing the request\n\n15. Implement circuit breaker pattern for the conversion process to handle degraded performance scenarios.\n\n16. Update API documentation to reflect the automatic format conversion capabilities.\n```\n</info added on 2025-04-13T20:21:27.801Z>",
+          "status": "done",
+          "parentTaskId": 12
+        },
+        {
+          "id": 4,
+          "title": "Implement Configuration and Feature Toggles",
+          "description": "Create a configuration system that allows the adapter layer to be enabled, disabled, or configured at runtime.",
+          "dependencies": [
+            3
+          ],
+          "details": "1. Implement a `FormatAdapterConfig` class to manage adapter settings.\n2. Add feature toggles to enable/disable the entire adapter layer.\n3. Create configuration options for specific conversion behaviors.\n4. Implement environment variable support for configuration.\n5. Add a configuration API endpoint to modify settings at runtime.\n6. Implement configuration persistence.\n7. Add validation for configuration changes.\n8. Testing approach: Write tests that verify the adapter behaves correctly when enabled/disabled and with different configuration settings.\n\n<info added on 2025-04-13T20:21:43.123Z>\nHere's additional information to enhance the subtask:\n\n```\n## Implementation Details\n\n### Adapter Configuration Structure\n- Extend `FormatAdapterConfig` to include:\n  - `enabled: boolean` - Master toggle for the adapter\n  - `conversionMode: 'strict' | 'lenient'` - Controls how strictly format rules are enforced\n  - `fallbackBehavior: 'reject' | 'passthrough' | 'transform'` - Defines behavior when conversion fails\n  - `performanceSettings: { cacheSize: number, timeoutMs: number }` - Performance tuning options\n\n### Integration with PaperMageAdapter\n- Modify the existing `PaperMageAdapter` constructor to accept a config object\n- Implement runtime checks in adapter methods to verify if the feature is enabled\n- Add conditional logic in transformation methods based on configuration settings\n- Create adapter factory that builds adapter instances with specific configurations\n\n### Configuration Management\n- Implement a singleton `ConfigurationManager` to maintain global adapter settings\n- Add support for hierarchical configuration (default → environment → runtime overrides)\n- Create helper methods for common configuration patterns\n- Implement hot-reloading of configuration without service restart\n\n### Environment Variable Mapping\n- Define standard environment variable naming convention (e.g., `PAPERMAGE_ADAPTER_ENABLED`)\n- Create mapping between environment variables and configuration properties\n- Implement automatic environment variable detection on startup\n- Add documentation for all supported environment variables\n\n### Validation Framework\n- Create schema-based validation for configuration objects\n- Implement validation hooks that run before configuration changes are applied\n- Add logging for configuration validation failures\n- Create typed configuration interfaces to ensure type safety\n```\n</info added on 2025-04-13T20:21:43.123Z>",
+          "status": "done",
+          "parentTaskId": 12
+        },
+        {
+          "id": 5,
+          "title": "Implement Extensibility Framework for Format Changes",
+          "description": "Design and implement an extensible framework that can accommodate future format changes in either system without requiring significant code changes.",
+          "dependencies": [
+            2,
+            4
+          ],
+          "details": "1. Implement the Strategy pattern to support multiple format versions.\n2. Create a `FormatVersionRegistry` to manage different format converters.\n3. Implement a factory method to select the appropriate converter based on format version.\n4. Add version detection logic for incoming documents.\n5. Create an extension point for registering new format converters.\n6. Implement backward compatibility handling for older format versions.\n7. Add comprehensive documentation for extending the adapter with new formats.\n8. Testing approach: Create tests with multiple format versions to verify the framework can handle format evolution over time.\n\n<info added on 2025-04-13T20:21:57.635Z>\nHere's additional information to enhance the subtask:\n\n```\nImplementation Notes:\n\n1. Refactoring PaperMageAdapter:\n   - Extract the current format conversion logic into a separate `DefaultFormatConverter` class\n   - Modify PaperMageAdapter to delegate conversion to the appropriate converter implementation\n   - Implement `IFormatConverter` interface with methods like `canConvert(Document)` and `convert(Document)`\n\n2. FormatVersionRegistry Implementation:\n   - Use a priority-based registration system where converters can specify which versions they support\n   - Implement thread-safe singleton pattern for the registry\n   - Add methods: `registerConverter(IFormatConverter)`, `getConverter(String version)`, `getConverterForDocument(Document)`\n\n3. Version Detection:\n   - Add metadata field in document header to store format version\n   - Implement fallback detection logic using document structure analysis when version metadata is missing\n   - Create `FormatVersionDetector` utility class with static methods for version identification\n\n4. Extension Points:\n   - Create a service provider interface (SPI) mechanism using Java's ServiceLoader\n   - Add configuration file support for declarative converter registration\n   - Implement runtime converter registration through API calls\n\n5. Backward Compatibility:\n   - Create version transformation pipeline to handle multi-step conversions when needed\n   - Implement format normalization layer to standardize document structure before conversion\n   - Add warning logs when processing legacy formats\n\n6. Testing Framework:\n   - Create a test fixture with sample documents in different format versions\n   - Implement parameterized tests to verify conversion across all supported format combinations\n   - Add performance benchmarks to ensure conversion overhead remains acceptable\n```\n</info added on 2025-04-13T20:21:57.635Z>",
+          "status": "done",
+          "parentTaskId": 12
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Implement UV Python Tool for Project Management and Execution",
+      "description": "Set up and configure UV (a fast Python package installer and resolver) to manage the entire software development lifecycle including dependency management, testing, reporting, and execution.",
+      "details": "This task involves implementing UV as the primary Python tooling solution for our project:\n\n1. Install UV globally: `pip install uv`\n\n2. Create a project configuration that uses UV for:\n   - Dependency management: Replace pip/poetry with UV for installing and managing dependencies\n   - Virtual environment creation and management\n   - Package resolution with improved performance\n\n3. Set up UV-based scripts in pyproject.toml or a Makefile to handle:\n   - Project initialization: `uv venv` for environment creation\n   - Dependency installation: `uv pip install -r requirements.txt` or `uv pip install -e .`\n   - Running the application: Create a command that uses UV to execute the main application\n   - Test execution: Configure UV to run pytest or other test frameworks\n   - Linting and code quality checks: Set up UV to run tools like flake8, black, isort\n   - Reporting: Configure UV to generate test coverage and other reports\n\n4. Document the UV workflow for team members, including:\n   - Setup instructions\n   - Common commands\n   - Troubleshooting steps\n   - Migration guide from previous tools\n\n5. Ensure CI/CD pipeline compatibility by updating any GitHub Actions or other CI configurations to use UV instead of pip/poetry.",
+      "testStrategy": "To verify successful implementation of UV for project management:\n\n1. Environment Creation Test:\n   - Run the UV environment creation command\n   - Verify the virtual environment is correctly created with expected Python version\n\n2. Dependency Management Test:\n   - Test installing dependencies with UV\n   - Verify all packages are correctly installed and resolved\n   - Compare installation time with previous tool to confirm performance improvement\n\n3. Project Execution Test:\n   - Use UV to run the application\n   - Verify the application starts and functions correctly\n   - Test with different configuration parameters\n\n4. Testing Framework Integration:\n   - Run the test suite using UV\n   - Verify all tests execute correctly\n   - Confirm test reports are generated as expected\n\n5. CI/CD Integration Test:\n   - Run a local simulation of the CI pipeline using UV\n   - Verify that all stages complete successfully\n   - Push a test branch to trigger the actual CI pipeline and confirm it works\n\n6. Team Usability Test:\n   - Have at least two team members follow the documentation to set up their environment using UV\n   - Collect feedback on any issues or confusion\n   - Update documentation based on feedback\n\nSuccess criteria: All team members can use UV for daily development tasks, all automated processes run successfully with UV, and there's measurable improvement in dependency resolution speed compared to previous tools.",
+      "status": "pending",
+      "dependencies": [],
+      "priority": "medium"
+    }
+  ],
+  "metadata": {
+    "projectName": "PaperMage-Docling Implementation",
+    "totalTasks": 10,
+    "sourceFile": "/Users/newmacbookpro/Developmet workspace/semantic-reader-backend/scripts/prd.txt",
+    "generatedAt": "2023-06-15"
+  }
+}

@@ -1,0 +1,278 @@
+# Task ID: 12
+# Title: Implement API Adapter Layer for PaperMage Format Conversion
+# Status: done
+# Dependencies: 11
+# Priority: high
+# Description: Refactor and enhance our existing PaperMageAdapter implementation from Task 11 into a dedicated adapter layer that converts between Docling's native document structures and PaperMage-compatible formats, implementing the API gateway pattern to intercept and transform all external requests and responses.
+# Details:
+This task involves refactoring and extending our existing conversion code from task 11 into a formal API adapter layer that acts as a boundary between Docling's internal system and external PaperMage consumers. We've already implemented basic conversion between DoclingDocument and PaperMage format in Task 11, and now we need to formalize that into a proper adapter layer following best practices.
+
+We're refactoring existing code, not creating completely new functionality. The focus is on making our existing adapter more robust, configurable, and extensible. The enhanced adapter should:
+
+1. Refactor the existing PaperMageAdapter implementation into a set of adapter classes that implement the API gateway pattern
+2. Enhance the existing bidirectional conversion logic between Docling's native document structures and PaperMage formats
+3. Add interceptors for all incoming API requests to convert PaperMage format payloads to Docling's native format before passing to the core system
+4. Add interceptors for all outgoing API responses to convert Docling's native format to PaperMage format before sending to external consumers
+5. Improve error handling for format conversion failures
+6. Ensure the adapter layer is configurable and can be enabled/disabled as needed
+7. Document all format differences and conversion rules
+8. Implement logging for debugging conversion issues
+9. Ensure the adapter doesn't impact performance significantly by optimizing conversion algorithms
+10. Design the adapter to be extensible for future format changes in either system
+
+The implementation should follow the Single Responsibility Principle, keeping all format conversion logic isolated to this component. Use factory patterns or strategy patterns if multiple format versions need to be supported. This task builds upon the foundation established in task 11, formalizing and enhancing our approach rather than creating entirely new functionality.
+
+# Test Strategy:
+Testing should verify both the functional correctness and the architectural integrity of the adapter layer:
+
+1. Unit tests:
+   - Test each conversion function with various document structures
+   - Test edge cases (empty documents, maximum size documents, documents with all possible field combinations)
+   - Test error handling for malformed input formats
+   - Verify compatibility with existing conversion tests from task 11
+
+2. Integration tests:
+   - Verify the adapter correctly intercepts and transforms API requests
+   - Confirm the adapter correctly transforms responses before they reach external consumers
+   - Test the full request/response cycle with mock PaperMage consumers
+   - Ensure refactored code maintains compatibility with existing integrations
+
+3. Performance tests:
+   - Measure and establish performance benchmarks for the conversion process
+   - Verify the adapter doesn't introduce significant latency (define acceptable thresholds)
+   - Test with large documents and high concurrency scenarios
+   - Compare performance metrics with the previous implementation
+
+4. Compatibility tests:
+   - Create a test suite with real-world PaperMage document examples
+   - Verify backward compatibility with existing PaperMage consumers
+   - Test with different versions of PaperMage formats if applicable
+   - Ensure the refactored adapter produces identical output to the previous implementation
+
+5. Isolation tests:
+   - Verify that changes to the adapter don't affect core system functionality
+   - Confirm that format changes can be implemented by only modifying the adapter layer
+
+Implement a CI pipeline that runs these tests automatically when changes are made to either the adapter or the core document structures.
+
+# Subtasks:
+## 1. Define Document Interfaces and Data Transfer Objects [done]
+### Dependencies: None
+### Description: Create the core interfaces that define both Docling's native document structures and PaperMage-compatible formats. Implement Data Transfer Objects (DTOs) to standardize communication between systems.
+### Details:
+1. Define the `DoclingDocument` interface with properties like id, content, and metadata.
+2. Define the `PaperMageDocument` interface with properties like documentId, body, and properties.
+3. Create request/response DTOs such as `ConversionRequest` and `ConversionResponse` to standardize API communication.
+4. Document all format differences between the two systems.
+5. Implement validation schemas for both document formats.
+6. Write unit tests to validate the interface definitions.
+7. Testing approach: Create test fixtures with sample documents in both formats to verify interface compatibility.
+
+<info added on 2025-04-13T20:21:02.167Z>
+Additional information to add:
+
+This subtask involves refactoring and extending existing code rather than creating new implementations from scratch. We'll build upon:
+
+- The existing `DoclingDocument` interface from `docling_core` library
+- The `PaperMageAdapter` implementation from Task 11
+
+Key focus areas:
+
+1. Formalize and extend interfaces based on our existing implementations, ensuring they capture all necessary properties and methods
+2. Extract conversion logic from the adapter into well-defined DTOs that can be used across our API endpoints
+3. Document the format differences already handled by our adapter, creating a comprehensive reference for future development
+4. Implement JSON Schema or similar validation for both document formats to improve error handling and conversion reliability
+
+Implementation notes:
+- Use TypeScript interfaces with proper JSDoc comments for all definitions
+- Consider using a validation library like Zod or Joi for schema definitions
+- Create a mapping document that explicitly shows field transformations between systems
+- Ensure backward compatibility with existing code that uses these interfaces
+</info added on 2025-04-13T20:21:02.167Z>
+
+## 2. Refactor and Enhance Existing Bidirectional Conversion Logic [done]
+### Dependencies: 12.1
+### Description: Refactor the existing PaperMageAdapter implementation into core adapter classes that handle the transformation logic between Docling and PaperMage formats, following the Adapter pattern.
+### Details:
+1. Refactor the existing PaperMageAdapter code into a more structured `DoclingToPaperMageAdapter` class with static methods for bidirectional conversion.
+2. Enhance the existing `toPaperMage()` method to handle more edge cases and document types.
+3. Enhance the existing `toDocling()` method to improve robustness and compatibility.
+4. Add deep conversion logic for nested objects and arrays if not already implemented.
+5. Implement proper error handling for format conversion failures.
+6. Add logging for debugging conversion issues.
+7. Optimize conversion algorithms for performance.
+8. Testing approach: Write comprehensive unit tests with edge cases (empty documents, large documents, malformed documents) to ensure robust conversion while maintaining compatibility with existing behavior.
+
+<info added on 2025-04-13T20:21:13.390Z>
+The existing subtask already covers most of the requested points, but I'll provide additional clarification about refactoring the existing adapter from Task 11 and making it production-ready:
+
+This subtask builds directly on the PaperMageAdapter implementation from Task 11, transforming it from a proof-of-concept into a production-ready component. The refactoring should:
+
+1. Preserve the core functionality while improving the architecture to follow best practices for the Adapter pattern
+2. Implement comprehensive error recovery strategies (not just error detection) including fallback conversion paths for problematic document sections
+3. Add structured logging with different verbosity levels to aid in troubleshooting conversion issues in production
+4. Implement performance profiling to identify and optimize bottlenecks in the conversion process
+5. Create a test suite that verifies both functional correctness and performance characteristics under load
+6. Document any limitations or known edge cases that cannot be fully handled
+
+The enhanced adapter should be able to gracefully handle partial conversion failures without losing document data, making it resilient in production environments.
+</info added on 2025-04-13T20:21:13.390Z>
+
+## 3. Create API Gateway Interceptor Middleware [done]
+### Dependencies: 12.1, 12.2
+### Description: Implement middleware that intercepts all incoming API requests and outgoing responses to apply the appropriate format conversions.
+### Details:
+1. Create an `ApiGatewayInterceptor` class that implements the API Gateway pattern.
+2. Implement request interceptor middleware to convert incoming PaperMage payloads to Docling format.
+3. Implement response interceptor middleware to convert outgoing Docling responses to PaperMage format.
+4. Add content-type detection to automatically determine the format of incoming requests.
+5. Implement error handling for malformed requests.
+6. Add detailed logging for request/response transformation.
+7. Testing approach: Use integration tests with mock requests/responses to verify the interceptor correctly transforms data in both directions.
+
+<info added on 2025-04-13T20:21:27.801Z>
+Here's the additional information to enhance the subtask:
+
+```
+8. Refactor the existing format conversion logic from DoclingApiService into the new ApiGatewayInterceptor to centralize all conversion operations.
+
+9. Design the interceptor to be configurable with different adapter strategies (PaperMageAdapter, potential future adapters) through dependency injection.
+
+10. Implement a consistent request processing pipeline:
+   - Pre-request: Format detection → Validation → Conversion to Docling format
+   - Post-response: Result validation → Conversion to client format → Response enrichment
+
+11. Create extension methods for HttpContext to simplify adapter usage in controllers:
+   ```csharp
+   // Example extension method
+   public static class HttpContextExtensions 
+   {
+       public static T GetConvertedBody<T>(this HttpContext context) 
+       {
+           return context.Items["ConvertedBody"] as T;
+       }
+   }
+   ```
+
+12. Implement adapter registration in the service container with appropriate lifetime scope (singleton).
+
+13. Add metrics collection for conversion operations:
+   - Conversion time
+   - Success/failure rates
+   - Payload sizes before/after conversion
+
+14. Create a standardized error response format for conversion failures that includes:
+   - Error code
+   - Detailed message
+   - Validation errors (if applicable)
+   - Suggestion for fixing the request
+
+15. Implement circuit breaker pattern for the conversion process to handle degraded performance scenarios.
+
+16. Update API documentation to reflect the automatic format conversion capabilities.
+```
+</info added on 2025-04-13T20:21:27.801Z>
+
+## 4. Implement Configuration and Feature Toggles [done]
+### Dependencies: 12.3
+### Description: Create a configuration system that allows the adapter layer to be enabled, disabled, or configured at runtime.
+### Details:
+1. Implement a `FormatAdapterConfig` class to manage adapter settings.
+2. Add feature toggles to enable/disable the entire adapter layer.
+3. Create configuration options for specific conversion behaviors.
+4. Implement environment variable support for configuration.
+5. Add a configuration API endpoint to modify settings at runtime.
+6. Implement configuration persistence.
+7. Add validation for configuration changes.
+8. Testing approach: Write tests that verify the adapter behaves correctly when enabled/disabled and with different configuration settings.
+
+<info added on 2025-04-13T20:21:43.123Z>
+Here's additional information to enhance the subtask:
+
+```
+## Implementation Details
+
+### Adapter Configuration Structure
+- Extend `FormatAdapterConfig` to include:
+  - `enabled: boolean` - Master toggle for the adapter
+  - `conversionMode: 'strict' | 'lenient'` - Controls how strictly format rules are enforced
+  - `fallbackBehavior: 'reject' | 'passthrough' | 'transform'` - Defines behavior when conversion fails
+  - `performanceSettings: { cacheSize: number, timeoutMs: number }` - Performance tuning options
+
+### Integration with PaperMageAdapter
+- Modify the existing `PaperMageAdapter` constructor to accept a config object
+- Implement runtime checks in adapter methods to verify if the feature is enabled
+- Add conditional logic in transformation methods based on configuration settings
+- Create adapter factory that builds adapter instances with specific configurations
+
+### Configuration Management
+- Implement a singleton `ConfigurationManager` to maintain global adapter settings
+- Add support for hierarchical configuration (default → environment → runtime overrides)
+- Create helper methods for common configuration patterns
+- Implement hot-reloading of configuration without service restart
+
+### Environment Variable Mapping
+- Define standard environment variable naming convention (e.g., `PAPERMAGE_ADAPTER_ENABLED`)
+- Create mapping between environment variables and configuration properties
+- Implement automatic environment variable detection on startup
+- Add documentation for all supported environment variables
+
+### Validation Framework
+- Create schema-based validation for configuration objects
+- Implement validation hooks that run before configuration changes are applied
+- Add logging for configuration validation failures
+- Create typed configuration interfaces to ensure type safety
+```
+</info added on 2025-04-13T20:21:43.123Z>
+
+## 5. Implement Extensibility Framework for Format Changes [done]
+### Dependencies: 12.2, 12.4
+### Description: Design and implement an extensible framework that can accommodate future format changes in either system without requiring significant code changes.
+### Details:
+1. Implement the Strategy pattern to support multiple format versions.
+2. Create a `FormatVersionRegistry` to manage different format converters.
+3. Implement a factory method to select the appropriate converter based on format version.
+4. Add version detection logic for incoming documents.
+5. Create an extension point for registering new format converters.
+6. Implement backward compatibility handling for older format versions.
+7. Add comprehensive documentation for extending the adapter with new formats.
+8. Testing approach: Create tests with multiple format versions to verify the framework can handle format evolution over time.
+
+<info added on 2025-04-13T20:21:57.635Z>
+Here's additional information to enhance the subtask:
+
+```
+Implementation Notes:
+
+1. Refactoring PaperMageAdapter:
+   - Extract the current format conversion logic into a separate `DefaultFormatConverter` class
+   - Modify PaperMageAdapter to delegate conversion to the appropriate converter implementation
+   - Implement `IFormatConverter` interface with methods like `canConvert(Document)` and `convert(Document)`
+
+2. FormatVersionRegistry Implementation:
+   - Use a priority-based registration system where converters can specify which versions they support
+   - Implement thread-safe singleton pattern for the registry
+   - Add methods: `registerConverter(IFormatConverter)`, `getConverter(String version)`, `getConverterForDocument(Document)`
+
+3. Version Detection:
+   - Add metadata field in document header to store format version
+   - Implement fallback detection logic using document structure analysis when version metadata is missing
+   - Create `FormatVersionDetector` utility class with static methods for version identification
+
+4. Extension Points:
+   - Create a service provider interface (SPI) mechanism using Java's ServiceLoader
+   - Add configuration file support for declarative converter registration
+   - Implement runtime converter registration through API calls
+
+5. Backward Compatibility:
+   - Create version transformation pipeline to handle multi-step conversions when needed
+   - Implement format normalization layer to standardize document structure before conversion
+   - Add warning logs when processing legacy formats
+
+6. Testing Framework:
+   - Create a test fixture with sample documents in different format versions
+   - Implement parameterized tests to verify conversion across all supported format combinations
+   - Add performance benchmarks to ensure conversion overhead remains acceptable
+```
+</info added on 2025-04-13T20:21:57.635Z>
+

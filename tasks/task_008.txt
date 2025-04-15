@@ -1,0 +1,173 @@
+# Task ID: 8
+# Title: Implement Visualization Tools
+# Status: done
+# Dependencies: 6
+# Priority: low
+# Description: Create visualization utilities to render parsed documents with annotations.
+# Details:
+1. Create visualizers/docling_visual.py (note the underscore, not camelCase)
+2. Implement functions to render PDF pages with entity boxes overlaid
+3. Add color coding for different entity types
+4. Create HTML or image output options
+5. Add interactive visualization if time permits (optional as per PRD priority)
+6. Ensure RTL text is displayed correctly in visualizations
+7. Add options to filter which layers are visualized
+8. Implement simple command-line interface for visualization
+9. Support visual validation of layout mapping as mentioned in PRD
+
+# Test Strategy:
+Create tests in tests/testvisualtests/testrasterandoverlay.py that verify:
+1. Visualization correctly renders entity boxes
+2. Colors and labels are applied correctly
+3. Output images or HTML are generated as expected
+4. Manual inspection of visualization output for a test document
+5. Include specific tests for RTL text rendering
+6. Add manual validation tests for visual correctness as specified in PRD
+7. Test layout mapping visualization to ensure pages and boxes align correctly on PDF images
+
+# Subtasks:
+## 1. Create Base Visualization Module Structure [done]
+### Dependencies: None
+### Description: Set up the foundational structure for the visualization module with proper architecture following the Model-View-Controller pattern to ensure modularity and maintainability.
+### Details:
+1. Create visualizers/docling_visual.py (with underscore as specified in PRD) with a modular structure
+2. Define base classes for different visualization types (PDF, HTML, image)
+3. Implement configuration handling for visualization settings (colors, filters, etc.)
+4. Set up logging and error handling mechanisms
+5. Create utility functions for color management with colorblind-friendly palettes
+6. Testing approach: Write unit tests for configuration handling and utility functions
+
+<info added on 2025-04-13T13:49:57.982Z>
+## Key PRD References:
+- **File Naming and Location**: From "System Architecture & Directory Layout" (p.22-23):
+  - The file should be named `visualizers/docling_visual.py` (with underscore, not camelCase).
+  - "We might not integrate it into the main container by default, but we can have a separate script or just instructions to run Gradio locally."
+
+- **Module Purpose**: From "Testing & Validation" (p.45):
+  - "Beyond automated tests, we will do manual validation on a handful of documents, especially focusing on visual correctness."
+  - "Render output (maybe using PaperMage's visualizer or some custom small script) to see that pages, boxes align on an image of the PDF."
+
+- **Implementation Approach**: The PRD suggests a gradual approach:
+  - "Visual validation tools should be implemented to verify the text appears correctly when rendered."
+  - "This is more for our satisfaction that nothing is wildly off in layout mapping."
+  - "For figures, we might provide figure references in JSON with coordinates and maybe allowed separate extraction (the specific approach can mirror PaperMage's handling of images)."
+
+- **Priority Consideration**: From the task priority level:
+  - Visualization tools are "low" priority, suggesting focus on basic functionality first, with more advanced features being optional.
+</info added on 2025-04-13T13:49:57.982Z>
+
+## 2. Implement PDF Rendering with Entity Annotations [done]
+### Dependencies: 8.1
+### Description: Create functionality to render PDF pages with entity boxes overlaid, ensuring proper positioning and rendering of annotations on the document.
+### Details:
+1. Use libraries like PyMuPDF (fitz) or pdf2image for PDF handling
+2. Implement functions to calculate bounding box coordinates for entities
+3. Create overlay mechanism for drawing boxes on PDF pages
+4. Add support for different line styles and thicknesses for entity boundaries
+5. Ensure proper handling of document scaling and coordinate transformations
+6. Consider using or adapting PaperMage's visualizer as mentioned in the PRD
+7. Testing approach: Create test cases with sample PDFs containing various entity types and verify correct rendering of boxes
+
+<info added on 2025-04-13T13:50:24.934Z>
+## Additional Implementation Details
+
+### Coordinate System Handling
+- Implement coordinate system transformation functions to handle the PDF's bottom-left origin (0,0) versus possible top-left origin in rendering libraries
+- Create utility functions to convert between coordinate systems when necessary
+- Include safeguards to detect and warn about coordinate inconsistencies
+
+### Box Representation Implementation
+- Define a Box class/structure with x0, y0, x1, y1 attributes as specified in the PRD
+- Include helper methods for calculating width/height, center point, and area
+- Implement intersection detection between boxes for validation purposes
+
+### Rendering Considerations
+- Support different zoom levels while maintaining coordinate precision
+- Implement color-coding for different entity types (configurable)
+- Add optional display of entity labels near or within boxes
+- Include toggle functionality to show/hide specific entity types
+
+### Validation Features
+- Add visual alignment verification tools to compare rendered boxes with underlying text
+- Implement boundary checking to flag boxes that extend beyond page dimensions
+- Create a debug mode that displays coordinate values on hover for easier verification
+
+### Performance Optimization
+- Consider caching rendered pages to improve performance when navigating documents
+- Implement lazy loading for large documents to reduce memory usage
+- Add progressive rendering for complex pages with many annotations
+</info added on 2025-04-13T13:50:24.934Z>
+
+## 3. Implement Entity Type Color Coding and Filtering [done]
+### Dependencies: 8.1, 8.2
+### Description: Add color coding for different entity types and implement filtering options to control which annotation layers are displayed in visualizations.
+### Details:
+1. Create a color mapping system for entity types with configurable color schemes
+2. Implement filter mechanisms to show/hide specific entity types
+3. Add legend generation for entity types and their corresponding colors
+4. Support opacity settings for overlapping annotations
+5. Ensure RTL text compatibility by detecting and properly handling text direction as specified in PRD
+6. Testing approach: Test with documents containing multiple entity types and verify correct color application and filtering functionality
+
+<info added on 2025-04-13T13:50:41.809Z>
+## PRD References for Entity Type Color Coding and Filtering
+
+### Interactive UI Requirements
+- Implement keyboard shortcuts for toggling entity visibility (e.g., Alt+1 for first entity type)
+- Support zoom and pan functionality while maintaining color coding and filtering state
+- Enable navigation between document pages with persistent filter settings
+
+### Entity Highlighting Implementation
+- Design color scheme with accessibility considerations (color blindness compatibility)
+- Implement hover states to show additional entity metadata
+- Support hierarchical filtering (e.g., filter by major category and subcategories)
+- Ensure sufficient contrast between entity colors and document background
+
+### HTML Integration Notes
+- Create modular color/filter components that can be reused across different visualization contexts
+- Implement filter UI using standard web components for compatibility
+- Design filter persistence using URL parameters to enable sharing of specific views
+
+### Debug Capabilities
+- Add toggle for confidence score visualization alongside entity coloring
+- Implement entity overlap detection with visual indicators for potential conflicts
+- Include comparison mode to highlight differences between annotation versions
+- Support export of current filter/color configuration for reproducibility
+</info added on 2025-04-13T13:50:41.809Z>
+
+## 4. Develop HTML and Image Output Options [done]
+### Dependencies: 8.2, 8.3
+### Description: Create functionality to export visualizations as HTML documents or image files, providing flexible output options for different use cases.
+### Details:
+1. Implement HTML export with CSS styling for annotations
+2. Add image export functionality (PNG, JPEG, SVG) with configurable resolution
+3. Create templates for HTML output with responsive design
+4. Implement proper text embedding and font handling for various languages
+5. Add metadata inclusion in exports (timestamp, document info, etc.)
+6. Ensure output can be used for manual validation as specified in PRD
+7. Testing approach: Generate outputs in different formats and verify visual accuracy and metadata inclusion
+
+## 5. Create Command-Line Interface and Interactive Visualization [done]
+### Dependencies: 8.3, 8.4
+### Description: Implement a command-line interface for the visualization tools and add interactive visualization features for enhanced user experience.
+### Details:
+1. Create a CLI using argparse or click with options for all visualization settings
+2. Implement batch processing for multiple documents
+3. Add interactive visualization using libraries like Plotly or Bokeh (as an optional feature per PRD priority)
+4. Implement tooltips showing entity details on hover
+5. Add zoom and pan functionality for large documents
+6. Create interactive filtering controls for entity types
+7. Include specific functionality for layout mapping validation as mentioned in PRD
+8. Testing approach: Test CLI with various parameter combinations and verify interactive features work across different browsers
+
+## 6. Implement Visual Validation Tools for Layout Mapping [done]
+### Dependencies: 8.2, 8.4
+### Description: Create specific visualization tools to verify layout mapping accuracy as mentioned in the PRD.
+### Details:
+1. Implement visualization that overlays extracted layout information on PDF images
+2. Create visual comparison tools to verify pages and boxes align correctly
+3. Add specific support for validating RTL text rendering
+4. Implement visual indicators for potential layout mapping issues
+5. Create simple reports highlighting potential layout problems
+6. Testing approach: Use sample documents with known layout features and verify correct visualization
+

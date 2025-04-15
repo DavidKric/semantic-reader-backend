@@ -1,0 +1,78 @@
+# Task ID: 1
+# Title: Setup Project Structure and Dependencies
+# Status: done
+# Dependencies: None
+# Priority: high
+# Description: Create the initial project structure with all required directories and files, and set up dependencies for the PaperMage-Docling implementation according to the PRD specifications.
+# Details:
+1. Create the directory structure as outlined in the PRD (page 22): papermage_docling/parsers/, predictors/, rasterizers/, visualizers/, api/, converters/, tests/
+2. Set up pyproject.toml with dependencies including docling, docling-core, docling-parse, docling-serve, FastAPI, uvicorn, and other required packages as specified in the PRD (page 8 and 19)
+3. Create empty __init__.py files in each directory to make them proper Python packages
+4. Set up a basic README.md with project description and installation instructions
+5. Create a .gitignore file for Python projects
+6. Configure pytest for testing according to the Testing & Validation section (pages 40-45)
+7. Follow exact file naming conventions as specified in the PRD (e.g., docling_pdf_parser.py)
+8. Reference PaperMage GitHub repository structure for code organization examples
+
+# Test Strategy:
+Verify that the project structure matches the PRD specification (page 22). Ensure all dependencies can be installed in a clean environment. Run a simple import test to confirm package structure is correct. Implement unit tests, integration tests, and RTL validation tests as outlined in the Testing & Validation section (pages 40-45).
+
+# Subtasks:
+## 1. Create Basic Project Structure and Configuration Files [done]
+### Dependencies: None
+### Description: Set up the foundational directory structure and essential configuration files for the PaperMage-Docling project following Python package best practices and PRD specifications.
+### Details:
+1. Create the root project directory 'papermage_docling' (note the underscore as per PRD)
+2. Create the following subdirectories as specified on page 22 of the PRD: parsers/, predictors/, rasterizers/, visualizers/, api/, converters/, tests/
+3. Add empty __init__.py files to each directory to make them proper Python packages
+4. Create a README.md with project description, purpose, and basic installation instructions
+5. Create a .gitignore file using Python template (include __pycache__/, *.pyc, .pytest_cache/, .coverage, etc.)
+6. Create a LICENSE file (recommend MIT or Apache 2.0)
+7. Follow exact file naming conventions as specified in the PRD (e.g., docling_pdf_parser.py)
+8. Test by verifying all directories and files exist with correct structure
+
+## Key PRD References:
+- Directory structure is defined in detail on page 22-23 of the PRD under "System Architecture & Directory Layout" section. Use exact directory and file naming conventions (e.g., use "docling_pdf_parser.py" not "parser_docling.py").
+- Complete structure examples:
+```
+papermage_docling/
+├── parsers/
+│   ├── __init__.py
+│   ├── docling_pdf_parser.py
+│   └── docling_ocr_parser.py
+├── predictors/
+│   ├── __init__.py
+│   ├── structure_predictor.py
+│   ├── table_predictor.py
+│   ├── language_predictor.py
+│   └── rtl_utils.py
+[etc...]
+```
+- Use MIT License to align with original PaperMage (referenced on page 10: "MIT License utility")
+- Follow the same README structure and basic content approach as PaperMage (https://github.com/allenai/papermage)
+
+## 2. Configure Package Dependencies with pyproject.toml [done]
+### Dependencies: None
+### Description: Set up the project's dependency management using pyproject.toml following modern Python packaging standards for better dependency resolution and project metadata.
+### Details:
+1. Create pyproject.toml in the root directory
+2. Configure build-system section using hatchling
+3. Add project metadata (name, version, description, authors, etc.)
+4. Define core dependencies including docling, docling-core, docling-parse, and fastapi
+5. Define API dependencies including FastAPI and uvicorn 
+6. Define development dependencies including pytest, black, ruff, mypy
+7. Configure optional dependencies for different use cases
+8. Test by running 'pip install -e .' to verify the configuration works correctly
+
+## Key Dependencies:
+- Core: docling, docling-core, docling-parse
+- API: FastAPI, uvicorn, pydantic
+- PDF Processing: PyMuPDF
+- Testing and Development: pytest, black, ruff, mypy
+
+## Implementation Notes:
+- Python requirement set to >=3.8 
+- All project metadata properly configured
+- Build system using hatchling
+- Tool configurations for ruff, pytest, and mypy included
+

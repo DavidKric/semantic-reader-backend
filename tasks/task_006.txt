@@ -1,0 +1,189 @@
+# Task ID: 6
+# Title: Implement Docling to PaperMage Converter
+# Status: done
+# Dependencies: 2, 3, 4, 5
+# Priority: high
+# Description: Create a dedicated module to convert between Docling's document representation and PaperMage's JSON format, ensuring exact compatibility with PaperMage v0.18+ JSON structure.
+# Details:
+1. Create converters/docling_to_papermage_converter.py (using underscores per PRD p.22)
+2. Implement conversion from DoclingDocument to PaperMage JSON format
+3. Map Docling's text items to PaperMage's entity layers
+4. Ensure all PaperMage layers are properly populated (tokens, words, sentences, blocks, etc.)
+5. Handle special cases like bibliography, citations, and equations
+6. Preserve all metadata and coordinate information
+7. Implement validation to ensure output matches PaperMage's expected format
+8. Ensure the JSON output format exactly matches PaperMage v0.18+ as specified in PRD p.17
+
+# Test Strategy:
+Create tests that verify:
+1. Conversion preserves all information from Docling document
+2. Output JSON matches PaperMage's expected structure exactly (v0.18+)
+3. All entity layers are correctly populated
+4. Test with sample documents and compare to expected PaperMage output
+5. Validate JSON schema compliance
+6. Verify that existing consumers of PaperMage JSON can use the output without changes
+
+# Subtasks:
+## 1. Create Base Converter Module Structure [done]
+### Dependencies: None
+### Description: Set up the foundational structure for the DoclingToPaperMageConverter module with proper class definitions, imports, and interface methods.
+### Details:
+1. Create the file `converters/docling_to_papermage_converter.py` (using underscores per PRD p.22)
+2. Define the `DoclingToPaperMageConverter` class with appropriate initialization
+3. Implement skeleton methods for conversion in both directions
+4. Set up proper error handling structure using try-except blocks
+5. Add docstrings and type hints for all methods
+6. Create a simple validation method to check if the output conforms to PaperMage's expected format
+7. Testing approach: Write unit tests to verify the class structure and method signatures
+
+<info added on 2025-04-13T13:44:05.140Z>
+## Key PRD References:
+- **Module Purpose**: From "Docling-to-PaperMage JSON Conversion Module" (p.9-10):
+  - "A critical piece for compatibility is translating the DoclingDocument output into the exact JSON structure that PaperMage previously produced."
+  - "We will implement a dedicated module, e.g. api/json_converter.py, responsible for this transformation."
+  - "When Docling returns a DoclingDocument (or its JSON), the converter will construct a Python dictionary matching Document.to_json() format of PaperMage."
+
+- **File Naming**: From "System Architecture & Directory Layout" (p.22):
+  - Use correct module name: `converters/docling_to_papermage_converter.py` with underscores, not camelCase.
+
+- **Converter Role**: From "Docling-to-PaperMage JSON Conversion Module" (p.9-10):
+  - "The json_converter.py will serve as the single translation layer between Docling's internal representation and PaperMage's external format."
+  - "By isolating this logic, we make it easy to adjust if needed and ensure that elsewhere in the code we can work with Docling types freely."
+
+- **PaperMage Format**: From "Persistence (Serialization)" (p.17):
+  - "PaperMage supports saving a parsed Document to JSON and loading it back (Document.to_json() and Document.from_json())."
+  - "The JSON output format will exactly match PaperMage v0.18+ (so that existing consumers of PaperMage JSON need not change)."
+</info added on 2025-04-13T13:44:05.140Z>
+
+## 2. Implement Docling Document Parsing Logic [done]
+### Dependencies: 6.1
+### Description: Create methods to parse and extract data from Docling's document representation, focusing on text content, structure, and metadata.
+### Details:
+1. Implement methods to extract text items from DoclingDocument
+2. Create parsers for document sections, paragraphs, and text blocks
+3. Extract metadata from the Docling document (title, authors, etc.) as specified in PRD p.9-10
+4. Extract coordinate information to preserve spatial layout (Docling provides word and character bounding boxes)
+5. Handle document structure elements (headings, sections, etc.)
+6. Use the Adapter pattern to create a consistent interface for different document elements
+7. Testing approach: Create test cases with sample Docling documents to verify parsing accuracy
+
+<info added on 2025-04-13T13:44:22.872Z>
+## Key PRD References:
+- **Docling Document Structure**: From "Multilayer Document Representation" (p.11):
+  - "The DoclingDocument model in docling-core provides a unified schema for text and layout, categorizing content into text items, tables, pictures, etc., with a tree structure for document hierarchy."
+  - "Docling-core defines a unified DoclingDocument data model (using Pydantic) for structured content."
+
+- **Text Extraction**: From "Docling-to-PaperMage JSON Conversion Module" (p.9-10):
+  - "This includes: assembling the full text content for the symbols field (Docling's DoclingDocument likely already has a way to get the full text in reading order – we will utilize that)."
+  - "We will iterate over Docling's word-level text units to collect each word's text and coordinates, formatting them as PaperMage word entities."
+
+- **Layout Extraction**: From "Docling-to-PaperMage JSON Conversion Module" (p.10):
+  - "DoclingDocument might allow us to traverse sections or regions of the page layout – we'll convert those into our block representation."
+  - "If instead rows meant text line rows, Docling's line-level extraction can be used. In either case, Docling's rich structure should allow extracting these without custom heuristics."
+
+- **Implementation Guidelines**: From "Implementation Summaries" (p.24-25):
+  - "If docling-core's DoclingDocument starts storing a direction for text items, we can utilize it."
+  - "We will leverage docling-core's JSON schema validation via docling-core to ensure our output is not malformed."
+</info added on 2025-04-13T13:44:22.872Z>
+
+## 3. Develop PaperMage JSON Structure Mapping [done]
+### Dependencies: 6.2
+### Description: Create the mapping logic to transform parsed Docling elements into PaperMage's JSON format, ensuring all required layers are properly populated to match PaperMage v0.18+ exactly.
+### Details:
+1. Define the PaperMage JSON schema structure as a Pydantic model for validation based on PaperMage v0.18+
+2. Implement mapping functions for each entity layer in PaperMage (tokens, words, sentences, blocks)
+3. Create transformation logic to convert Docling text items to PaperMage entities
+4. Implement coordinate transformation if coordinate systems differ
+5. Ensure proper nesting of entities according to PaperMage's hierarchical structure
+6. Use the Pipeline pattern to process document elements in stages
+7. Ensure the output exactly matches Document.to_json() format of PaperMage as specified in PRD
+8. Testing approach: Verify that sample documents are correctly transformed into valid PaperMage JSON
+
+<info added on 2025-04-13T13:44:46.193Z>
+## Key PRD References:
+- **JSON Structure Requirements**: From "Output JSON Schema Compliance" (p.17):
+  - "Each layer of entities will be a key in the 'entities' dictionary in JSON, as PaperMage does."
+  - "We will include 'symbols' (the full text) and 'metadata' at top level, same as PaperMage."
+  - JSON structure format: `{"symbols": "<full text>", "entities": {...}, "metadata": {...}}` with sub-structures like rows, tokens, words, blocks, sentences etc.
+
+- **Layer Mapping Instructions**: From "Docling-to-PaperMage JSON Conversion Module" (p.9-10):
+  - For Tokens/Words: "We will iterate over Docling's word-level text units to collect each word's text and coordinates, formatting them as PaperMage word entities." 
+  - For Blocks/Sections: "Docling performs layout analysis, identifying text blocks (paragraphs, columns, section headers, etc.). It likely labels them or groups lines into higher-level segments. We will use Docling's layout grouping to fill the blocks list."
+  - For Rows: "If the original PaperMage uses rows to represent table rows or text lines, we will derive those from Docling. Docling explicitly supports table structure extraction."
+
+- **Entity Representation**: From "Coordinate Precision" (p.15):
+  - "For each Docling text item (line or word), retrieve its bounding box (Docling uses PDF coordinates natively). Construct Box objects for each span in our Document." 
+  - "Ensure that when an Entity spans multiple discontinuous areas (like a heading with a line break or a sentence across page break), multiple spans and boxes are stored just like PaperMage did."
+
+- **Validation**: From "Output JSON Schema Compliance" (p.17):
+  - "We will run DoclingDocument.model_validate(json) from docling-core as a sanity check to ensure our JSON doesn't violate Docling's schema."
+</info added on 2025-04-13T13:44:46.193Z>
+
+## 4. Handle Special Document Elements [done]
+### Dependencies: 6.3
+### Description: Implement specialized handling for complex document elements such as bibliography, citations, equations, tables, and figures.
+### Details:
+1. Create dedicated parsers for bibliographic entries from Docling documents
+2. Implement citation extraction and formatting according to PaperMage requirements
+3. Develop equation handling with proper mathematical notation preservation
+4. Add support for tables with row/column structure mapping (Docling can detect tables per PRD p.9-10)
+5. Implement figure and image extraction with captions and references (Docling extracts bitmap figures with coordinates)
+6. Create specialized validators for each complex element type
+7. Testing approach: Test with documents containing various special elements to ensure proper conversion
+
+<info added on 2025-04-13T13:45:12.069Z>
+## Key PRD References:
+- **Bibliography and Citations**: From "Bibliography and Citations" (p.17):
+  - "We will detect the start of the references section by looking for common headers like 'References' or by the layout classifier's output (if I-VILA classifies blocks as bibliography)."
+  - "Once identified, every line or paragraph until end-of-document can be grouped into individual reference entities."
+  - "Citation markers in body text (e.g., '[12]' or 'Doe et al., 2020') might be detected via regex."
+  - "We can populate a cite_marks layer (if desired, or include them as a type of inline entity in entities)."
+
+- **Figures and Tables**: From "Docling-to-PaperMage JSON Conversion Module" (p.10):
+  - "Docling already extracts images (bitmap figures) with coordinates and can classify them, and detect tables."
+  - "If the CoreRecipe in PaperMage originally added figure/table annotations, our Docling pipeline will natively provide those."
+  - "The converter will create figures and tables lists in the output JSON (if expected by consumers), containing analogous info (e.g., figure bounding boxes, possibly references to extracted images or captions if applicable)."
+  - "If PaperMage's JSON didn't include the actual image bytes (it likely did not, to keep JSON lightweight), we will not include them either."
+
+- **Equations and Special Elements**: From "Tables and Lists" (p.16):
+  - "For tables, as noted, docling provides structured tables. We will output each table as an entity with potentially a nested structure or at least a reference to the cell contents."
+  - "For lists, docling's output includes detection of list containers and list items. We will traverse Docling's content tree to find list structures and translate them into a flat lists layer similar to PaperMage."
+
+- **Relations Implementation**: From "Entities and References" (p.13):
+  - "For relations (e.g. linking a citation mention to a bibliography entry), we will implement a simple matching."
+  - "Each citation mark could have a relation referencing the corresponding bibliography entry entity (by index or id)."
+</info added on 2025-04-13T13:45:12.069Z>
+
+## 5. Implement Converter Module and CLI Interface [done]
+### Dependencies: 6.3, 6.4
+### Description: Implement the final converter module following PRD specifications and create a command-line interface for the converter.
+### Details:
+1. Implement the converter module as specified in PRD (api/json_converter.py or converters/docling_to_papermage_converter.py)
+2. Ensure the converter constructs a Python dictionary matching Document.to_json() format of PaperMage
+3. Ensure metadata preservation as specified in PRD p.9-10
+4. Add comprehensive validation to ensure exact compatibility with PaperMage v0.18+ JSON format
+5. Implement a command-line interface with argparse for easy usage
+6. Add logging functionality to track conversion process and errors
+7. Create a simple progress indicator for large document conversions
+8. Testing approach: Create end-to-end tests that verify exact compatibility with PaperMage JSON format
+
+<info added on 2025-04-13T13:45:34.883Z>
+## Key PRD References:
+- **Reverse Conversion**: From "Persistence (Serialization)" (p.17):
+  - "Likewise, a from_json() that creates our Document (or directly a DoclingDocument) from a saved JSON will be provided."
+  - "We will validate this by round-tripping: doc = parser_docling.parse(pdf); json = doc.to_json(); doc2 = Document.from_json(json) – doc2 should be equivalent to doc."
+
+- **API Design**: From "Library API Parity" (p.18):
+  - "The new implementation should expose a similar API for developers. For example, users should be able to do from papermage_docling import CoreRecipe; doc = CoreRecipe().run('file.pdf') analogous to the original."
+  - "We will either mimic the CoreRecipe class or provide an equivalent function."
+  - "The returned doc should behave like a PaperMage Document object (at least exposing attributes like .symbols, .layers, and iterables like .pages, .tokens, etc.)."
+
+- **CLI Requirements**: From "Extensibility" (p.18):
+  - "The design should allow adding new predictors easily, akin to PaperMage's plugin system for predictors."
+  - "For instance, one could drop in a new Predictor class in the predictors/ directory, and the pipeline can pick it up (perhaps via a config or by explicitly coding it in CoreRecipe)."
+
+- **Validation**: From "Output JSON Schema Compliance" (p.17):
+  - "Additionally, we leverage Docling's JSON schema validation via docling-core to ensure our output is not malformed."
+  - "Differences (if any) will be noted: e.g., Docling expects texts, tables, etc. at top level instead of our layered approach. Our primary commitment is to PaperMage's format, so if conflicts arise, we favor PaperMage format but keep as much alignment with Docling's schema as possible."
+</info added on 2025-04-13T13:45:34.883Z>
+

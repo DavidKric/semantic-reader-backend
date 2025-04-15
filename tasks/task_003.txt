@@ -1,0 +1,193 @@
+# Task ID: 3
+# Title: Implement RTL Text Support
+# Status: done
+# Dependencies: 2
+# Priority: high
+# Description: Create utilities to handle right-to-left text (particularly Hebrew) correctly in the parsing pipeline, following the PRD's 'Hebrew/RTL Support Plan' section (pages 33-38).
+# Details:
+1. Create predictors/rtl_utils.py with functions for RTL text handling as specified in PRD (page 29)
+2. Implement is_rtl(text: str) -> bool function to detect RTL scripts
+3. Implement reorder_text_and_boxes(text: str, boxes: List[Box]) -> Tuple[str, List[Box]] to correctly order RTL text and associated bounding boxes
+4. Implement normalize_document(document: Document) -> None to apply RTL fixes throughout a Document
+5. Integrate RTL handling into the DoclingParser.parse() method as step 4 'Apply RTL fixes' with rtl_utils.normalize_document(doc) call (PRD pages 24-25)
+6. Handle mixed direction text (e.g., English words in Hebrew text)
+7. Ensure correct span indices for RTL text segments
+8. Add metadata flags for RTL content
+
+# Test Strategy:
+Create tests in tests/testpredictors/test_rtl_utils.py that verify:
+1. RTL detection works correctly for Hebrew and Arabic text
+2. Text reordering preserves all characters while fixing order
+3. Box coordinates are correctly reordered with text
+4. Mixed direction text is handled properly
+5. Test with a simple Hebrew PDF to ensure end-to-end RTL handling works
+6. Follow specific RTL testing strategies outlined in the PRD (pages 42-43)
+
+# Subtasks:
+## 1. Create RTL Detection and Script Identification Functions [done]
+### Dependencies: None
+### Description: Implement utility functions to detect RTL scripts (particularly Hebrew) and identify script types in text. This forms the foundation for all RTL text processing in the pipeline.
+### Details:
+1. Create predictors/rtl_utils.py module with proper imports (note the underscore in filename per PRD page 22)
+2. Implement is_rtl(text: str) -> bool function as specified in PRD (page 29) using Unicode character ranges to detect RTL scripts (Hebrew, Arabic, etc.)
+3. Create helper functions to identify specific script types (is_hebrew(), is_arabic(), etc.)
+4. Implement get_script_direction() to determine text direction based on character analysis
+5. Add support for detecting mixed script content
+6. Write comprehensive unit tests with various text samples including Hebrew, Arabic, mixed content, and edge cases
+7. Test with Unicode Bidirectional Algorithm examples to ensure compliance
+8. Document all functions with clear docstrings explaining usage and return values
+
+<info added on 2025-04-13T13:32:02.303Z>
+## Key PRD References:
+- **Function Implementation**: From "Implementation Summaries" (p.29):
+  - "`is_rtl(text: str) -> bool`: returns True if characters in text are mostly from an RTL script (Hebrew, Arabic, etc.). This could check Unicode ranges or use Python's `unicodedata.bidirectional` property on characters."
+
+- **Script Detection**: From "Hebrew/RTL Support Plan" (p.33-38):
+  - "PDF extraction tools (including Docling's) typically output text in the visual order they appear on the page, which for RTL scripts means reversed logical order."
+  - Example: "a Hebrew sentence 'בודק RTL טקסט' (meaning 'testing RTL text') might be extracted as 'טקסט RTL בודק' (letters in reverse order) if read left-to-right."
+
+- **Libraries and Approaches**: From "Hebrew/RTL Support Plan" (p.33-38):
+  - "We will use Python's `bidilib` (if available) or a manual approach leveraging Unicode character properties."
+  - "For Hebrew, simply reversing might suffice in many cases, but ideally apply the full bidi algorithm (for safety if numbers or LTR segments are inside)."
+
+- **File Naming**: From "System Architecture & Directory Layout" (p.22):
+  - Use correct module name: `predictors/rtl_utils.py` with underscore.
+</info added on 2025-04-13T13:32:02.303Z>
+
+## 2. Implement Text Reordering for RTL Content [done]
+### Dependencies: 3.1
+### Description: Create functions to properly reorder RTL text and associated bounding boxes according to the Unicode Bidirectional Algorithm, ensuring correct visual representation.
+### Details:
+1. Implement reorder_text_and_boxes(text: str, boxes: List[Box]) -> Tuple[str, List[Box]] function as specified in PRD (page 29)
+2. Use the Unicode Bidirectional Algorithm to handle text reordering
+3. Create helper functions to handle special cases like numbers and Latin characters within RTL text
+4. Implement logic to adjust bounding box ordering to match the reordered text
+5. Handle mixed direction text by identifying script changes and applying appropriate reordering
+6. Create visualization tools for debugging text reordering
+7. Test with various Hebrew text samples containing mixed content
+8. Benchmark performance for large documents with mixed RTL/LTR content
+9. Reference the detailed RTL Support Plan in PRD (pages 33-38) for implementation guidance
+
+<info added on 2025-04-13T13:32:25.551Z>
+## Key PRD References:
+- **Function Specification**: From "Implementation Summaries" (p.29):
+  - "`reorder_text_and_boxes(text: str, boxes: List[Box]) -> Tuple[str, List[Box]]`: if `is_rtl(text)` is True, this function will reorder the characters in `text` to logical order and correspondingly reorder the list of `Box` objects so that the first character in the new text corresponds to the first box on the right."
+
+- **Bidi Algorithm Implementation**: From "Hebrew/RTL Support Plan" (p.33-38):
+  - "Python's bidi algorithm can handle mixed text, inserting Unicode bidi markers. We will integrate that so that, for example, 'Algorithm 1 מתואר' (mixed English/Hebrew) is stored in a way that when displayed, 'Algorithm 1' remains left-to-right within the right-to-left sentence."
+  - "For English phrase, the first token's box is leftmost; for Hebrew, the first token's box is rightmost. After reordering the text, we need to ensure that the sequence of boxes matches the sequence of characters or tokens in the text."
+
+- **Implementation Approach**: From "Hebrew/RTL Support Plan" (p.33-38):
+  - "When processing a line that is detected as RTL, we will sort the character or token boxes in descending order of their x-coordinate (since rightmost comes first) before associating them with the text characters."
+  - "For entire line boxes (the Row entity box covering the line) we keep it as-is (it spans the whole line regardless of text direction)."
+
+- **Example with Visualized Process**: From "Hebrew/RTL Support Plan" (p.33-38):
+  - "Example: A Hebrew paragraph in the PDF will be processed as follows:
+    1. Docling extracts: text="תורה לוגיקה" (which is "logic order" reversed) and boxes for ["תורה", "לוגיקה"] but perhaps in opposite order.
+    2. `rtl_utils` sees Hebrew chars, reverses text to "לוגיקה תורה" (which is now the correct logical phrase "torah logika", meaning "logic order" in correct Hebrew).
+    3. It also swaps the two word boxes so that "לוגיקה" box comes first, "תורה" second."
+</info added on 2025-04-13T13:32:25.551Z>
+
+## 3. Develop Document Normalization for RTL Support [done]
+### Dependencies: 3.1, 3.2
+### Description: Create a document normalization function that applies RTL fixes throughout a Document object, ensuring consistent handling of RTL content across the entire document.
+### Details:
+1. Implement normalize_document(document: Document) -> None function as specified in PRD (page 29)
+2. Traverse the document structure to identify and mark RTL text segments
+3. Apply text reordering to all RTL segments using functions from subtask 2
+4. Update span indices to maintain correct text references after reordering
+5. Add metadata flags to document sections containing RTL content
+6. Implement special handling for tables, lists, and other structured content
+7. Create test cases with complex document structures containing mixed RTL/LTR content
+8. Ensure normalization is idempotent (running it multiple times produces the same result)
+9. Follow the detailed implementation guidelines in the PRD's Hebrew/RTL Support Plan (pages 33-38)
+
+<info added on 2025-04-13T13:32:46.871Z>
+## Key PRD References:
+- **Function Specification**: From "Implementation Summaries" (p.29):
+  - "`normalize_document(document: Document) -> None`: a convenience that goes through all text entities (or specifically low-level ones like tokens or rows) and applies reordertextandboxes where appropriate."
+  - "For example, for each row entity, check if its text is RTL; if yes, fix it in place. This way higher-level entities that consist of those spans automatically get corrected text."
+
+- **Document Traversal Approach**: From "Hebrew/RTL Support Plan" (p.33-38):
+  - "RTL adjustment is applied during step 2 (after extraction, before creating spans) to ensure any Hebrew/Arabic text segments are stored in correct order."
+  - "We might look at how docling-parse orders characters: if it's purely left-to-right by coordinate (which is typical), RTL text would come out reversed. So our utility fixes that."
+  - "We must do the above consistently at all levels: At the line (row) level, ensure that the text in `.symbols` for that row reads correctly."
+
+- **Metadata Addition**: From "Hebrew/RTL Support Plan" (p.33-38):
+  - "We will add a metadata flag perhaps: For any Entity that has been reordered, set `entity.metadata["direction"] = "RTL"` for transparency."
+  - "Docling's planned language detection could populate `DoclingDocument.metadata.language`; until then, we handle it."
+
+- **Implementation Process**: From "Implementation Summaries" (p.24-25):
+  - In pseudocode showing `parse()` method: after building base layers, step 4 is `rtl_utils.normalize_document(doc)` to apply RTL fixes.
+</info added on 2025-04-13T13:32:46.871Z>
+
+## 4. Implement Span Index Correction for RTL Text [done]
+### Dependencies: 3.2, 3.3
+### Description: Create utilities to ensure correct span indices for RTL text segments after reordering, maintaining proper references to the original text positions.
+### Details:
+1. Implement functions to track character positions before and after reordering
+2. Create a mapping system between original and reordered text positions
+3. Develop utilities to transform span indices based on the position mapping
+4. Handle special cases like bidirectional text with numbers and punctuation
+5. Create validation functions to ensure span integrity after transformations
+6. Implement efficient algorithms for index transformation to maintain performance
+7. Test with complex documents containing nested spans and mixed RTL/LTR content
+8. Create visualization tools to debug span transformations
+9. Reference the PRD's RTL Support Plan (pages 33-38) for specific requirements on span handling
+
+<info added on 2025-04-13T13:33:02.625Z>
+## Key PRD References:
+- **Integration Requirements**: From "Implementation Summaries" (p.29):
+  - "All RTL text support functions are packaged within the docling.predictors module and called from the main PdfParser class."
+  - "RTL detection and correction is automatically applied as part of the standard document parsing workflow."
+
+- **Parser Configuration**: From "Hebrew/RTL Support Plan" (p.33-38):
+  - "RTL support is enabled by default but can be disabled via a parameter to PdfParser: `parser = PdfParser(enable_rtl=False)`"
+  - "Performance impact is minimal for documents without RTL content as detection is fast."
+  - "When disabled, no RTL detection or reordering is performed at all, saving computation time for known LTR-only documents."
+
+- **Implementation Location**: From "Architecture" (p.22):
+  - "RTL support code should be modularized into the predictors/ directory to allow for easy maintenance and potential future improvements."
+  - "The main parser.py file should only contain imports and calls to the RTL modules, not the implementation details."
+
+- **Testing Strategy**: From "Hebrew/RTL Support Plan" (p.33-38):
+  - "Integration tests should include PDF documents with mixed RTL/LTR content to ensure the parser correctly identifies and processes both."
+  - "Tests should verify that parsing the same document with enable_rtl=True and enable_rtl=False produces expected differences in the output."
+</info added on 2025-04-13T13:33:02.625Z>
+
+## 5. Integrate RTL Support into DoclingParser [done]
+### Dependencies: 3.1, 3.2, 3.3, 3.4
+### Description: Integrate all RTL handling utilities into the main parsing pipeline, ensuring seamless processing of documents containing RTL text.
+### Details:
+1. Modify DoclingParser.parse() method to detect and handle RTL content
+2. Add configuration options for RTL processing (enable/disable, specific language support)
+3. Integrate normalize_document() function into the parsing workflow as step 4 'Apply RTL fixes' with rtl_utils.normalize_document(doc) call (PRD pages 24-25)
+4. Implement pre-processing steps to identify document direction before full parsing
+5. Add post-processing to ensure consistent metadata for RTL content
+6. Create comprehensive logging for RTL-related operations
+7. Develop end-to-end tests with various document types containing RTL content
+8. Benchmark parser performance with and without RTL processing to identify optimization opportunities
+9. Document the RTL support features in the parser's documentation
+10. Follow the integration approach outlined in the PRD's parsing pipeline description
+
+<info added on 2025-04-13T13:33:17.709Z>
+## Key PRD References:
+- **Testing Requirements**: From "Hebrew/RTL Support Plan" (p.35-36):
+  - "Unit tests should focus on the RTL detection accuracy, correctness of reordering, and proper handling of mixed text."
+  - "Test documents should include: Hebrew-only, Arabic-only, mixed Hebrew-English, and complex documents with tables containing RTL text."
+  - "Edge cases to test include: numbers within RTL text, URLs, email addresses, and code snippets embedded in RTL paragraphs."
+
+- **Validation Criteria**: From "Implementation Summaries" (p.30-31):
+  - "A test is considered passed when: 1) All RTL text is correctly identified, 2) The visual reading order matches the logical order in the Document object, 3) All entity references maintain integrity."
+  - "Visual validation tools should be implemented to verify the text appears correctly when rendered."
+
+- **Test Data Sources**: From "Hebrew/RTL Support Plan" (p.37):
+  - "Use the provided set of 20 benchmark documents with annotated ground truth for RTL detection and reordering evaluation."
+  - "The benchmark documents are located in the 'test/resources/rtl_benchmark/' directory."
+  - "Each document has a corresponding JSON file with the expected outputs when RTL processing is correctly applied."
+
+- **Performance Metrics**: From "Implementation Summaries" (p.31):
+  - "RTL processing should not increase overall parsing time by more than 15% for documents with significant RTL content."
+  - "For documents without RTL content, the overhead should be negligible (<2%)."
+</info added on 2025-04-13T13:33:17.709Z>
+

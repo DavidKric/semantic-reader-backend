@@ -1,0 +1,196 @@
+# Task ID: 11
+# Title: Refactor Processing Pipeline to Use DoclingDocument Structure End-to-End
+# Status: done
+# Dependencies: 2, 3, 4, 5, 6
+# Priority: high
+# Description: Update the core document processing pipeline to use Docling's native DoclingDocument structure throughout all internal operations, eliminating unnecessary format conversions except at API boundaries.
+# Details:
+This refactoring task requires modifying all components in the processing pipeline to work directly with DoclingDocument structures instead of converting between formats at multiple points. Steps include:
+
+1. Identify all points in the codebase where document format conversions occur (especially to/from PaperMage format)
+2. Modify all predictors to accept DoclingDocument as input and produce outputs compatible with DoclingDocument
+3. Update parsers to work natively with DoclingDocument structure
+4. Refactor any utility functions that assume non-Docling formats
+5. Implement conversion to PaperMage format only at API boundaries where external compatibility is required
+6. Update any internal data storage or caching mechanisms to work with DoclingDocument
+7. Ensure all document attributes and metadata are properly preserved throughout the pipeline
+8. Optimize for performance by eliminating redundant data transformations
+9. Document the new data flow architecture
+
+The refactoring should maintain complete functional equivalence while simplifying the internal architecture. Special attention should be paid to edge cases where document structure might differ between formats. Any assumptions about document structure embedded in the current code should be identified and addressed.
+
+# Test Strategy:
+Testing should verify both correctness and performance improvements:
+
+1. Create comprehensive unit tests for each refactored component that verify they correctly process DoclingDocument structures
+2. Develop integration tests that trace document flow through the entire pipeline
+3. Implement comparison tests that process the same input through both old and new pipelines and verify identical outputs
+4. Create specific tests for edge cases including:
+   - Documents with complex nested structures
+   - Documents with special characters or unusual formatting
+   - Very large documents to test performance at scale
+   - Documents with minimal content to test boundary conditions
+5. Measure and document performance metrics before and after refactoring:
+   - Processing time for standard document sets
+   - Memory usage during processing
+   - CPU utilization
+6. Verify API compatibility by ensuring external interfaces continue to work as expected
+7. Implement regression tests that verify all existing functionality remains intact
+
+All tests should be automated and incorporated into the CI/CD pipeline to prevent future regressions.
+
+# Subtasks:
+## 1. Analyze Document Format Conversions and Create Conversion Map [done]
+### Dependencies: None
+### Description: Identify all points in the codebase where document format conversions occur, especially to/from PaperMage format. Create a comprehensive conversion map documenting the current data flow and transformation points.
+### Details:
+1. Use static code analysis tools to identify all import statements related to document format classes
+2. Create a directed graph showing the current document flow through the pipeline, marking all conversion points
+3. Document the attributes and metadata that need to be preserved during conversions
+4. Identify edge cases where document structure differs between formats
+5. Create a detailed report with:
+   - All conversion functions/methods
+   - Input/output formats for each pipeline component
+   - Data loss or transformation issues in current conversions
+   - Conversion frequency metrics to identify performance bottlenecks
+6. Testing approach: Create unit tests that validate the conversion map by tracing sample documents through the pipeline and verifying all conversion points are correctly identified
+
+## 2. Implement DoclingDocument as Core Data Structure with Adapters [done]
+### Dependencies: 11.1
+### Description: Define the DoclingDocument structure as the central data model and implement adapter classes for necessary format conversions at API boundaries only.
+### Details:
+1. Enhance the DoclingDocument class using Pydantic for validation:
+   ```python
+   from pydantic import BaseModel, Field
+   from typing import List, Optional
+   
+   class DoclingDocument(BaseModel):
+       texts: List[TextItem] = Field(default_factory=list)
+       tables: List[TableItem] = Field(default_factory=list)
+       pictures: List[PictureItem] = Field(default_factory=list)
+       key_value_items: List[KeyValueItem] = Field(default_factory=list)
+       metadata: Optional[dict] = Field(default_factory=dict)
+   ```
+2. Implement adapter classes using the Adapter pattern for external format conversions:
+   ```python
+   class PaperMageAdapter:
+       @staticmethod
+       def to_papermage(doc: DoclingDocument) -> PaperMageFormat:
+           # Convert DoclingDocument to PaperMage format
+           pass
+           
+       @staticmethod
+       def from_papermage(pm_doc: PaperMageFormat) -> DoclingDocument:
+           # Convert PaperMage format to DoclingDocument
+           pass
+   ```
+3. Create utility functions for format validation and error handling
+4. Implement serialization/deserialization methods for DoclingDocument (JSON, XML, etc.)
+5. Testing approach: Create comprehensive unit tests for the adapters with various document types, ensuring lossless conversion at boundaries
+
+## 3. Refactor Predictors and Parsers to Use DoclingDocument Natively [done]
+### Dependencies: 11.2
+### Description: Modify all predictors and parsers in the pipeline to accept DoclingDocument as input and produce outputs compatible with DoclingDocument structure.
+### Details:
+1. Update all predictor classes to accept DoclingDocument directly:
+   ```python
+   class DocumentPredictor:
+       def predict(self, doc: DoclingDocument) -> DoclingDocument:
+           # Process document and return enhanced DoclingDocument
+           return processed_doc
+   ```
+2. Refactor parsers to work with DoclingDocument structure:
+   ```python
+   class DocumentParser:
+       def parse(self, doc: DoclingDocument) -> DoclingDocument:
+           # Parse document content and update DoclingDocument
+           return parsed_doc
+   ```
+3. Implement a Pipeline pattern for sequential processing:
+   ```python
+   class DoclingPipeline:
+       def __init__(self, steps: List[Callable[[DoclingDocument], DoclingDocument]]):
+           self.steps = steps
+           
+       def process(self, doc: DoclingDocument) -> DoclingDocument:
+           result = doc
+           for step in self.steps:
+               result = step(result)
+           return result
+   ```
+4. Update any utility functions that assume non-Docling formats
+5. Testing approach: Create integration tests that verify each predictor and parser correctly processes DoclingDocument objects and maintains document integrity
+
+## 4. Update Storage and Caching Mechanisms for DoclingDocument [done]
+### Dependencies: 11.2, 11.3
+### Description: Refactor internal data storage and caching mechanisms to work natively with DoclingDocument structure, optimizing for performance and eliminating redundant transformations.
+### Details:
+1. Update database models and ORM mappings to store DoclingDocument structures:
+   ```python
+   class DocumentModel(Base):
+       __tablename__ = 'documents'
+       
+       id = Column(Integer, primary_key=True)
+       content = Column(JSON)  # Store serialized DoclingDocument
+       
+       @property
+       def docling_document(self) -> DoclingDocument:
+           return DoclingDocument.parse_obj(json.loads(self.content))
+           
+       @docling_document.setter
+       def docling_document(self, doc: DoclingDocument):
+           self.content = doc.json()
+   ```
+2. Implement caching mechanisms optimized for DoclingDocument:
+   ```python
+   class DocumentCache:
+       def __init__(self, cache_size=100):
+           self.cache = LRUCache(cache_size)
+           
+       def get(self, doc_id: str) -> Optional[DoclingDocument]:
+           return self.cache.get(doc_id)
+           
+       def put(self, doc_id: str, doc: DoclingDocument) -> None:
+           self.cache.put(doc_id, doc)
+   ```
+3. Optimize serialization/deserialization for performance
+4. Implement batch processing capabilities for large document sets
+5. Testing approach: Benchmark performance before and after changes, verify data integrity through cache/storage cycles with complex documents
+
+## 5. Implement End-to-End Integration and Documentation [done]
+### Dependencies: 11.1, 11.2, 11.3, 11.4
+### Description: Connect all refactored components into a cohesive pipeline, implement format conversion only at API boundaries, and document the new architecture.
+### Details:
+1. Assemble the complete pipeline using the refactored components:
+   ```python
+   from docling.pipeline.simple_pipeline import SimplePipeline
+   
+   # Initialize the pipeline
+   pipeline = SimplePipeline()
+   
+   # Add processing steps
+   pipeline.add_step(document_converter)
+   pipeline.add_step(document_parser)
+   pipeline.add_step(document_predictor)
+   ```
+2. Implement API boundary conversions using the adapter pattern:
+   ```python
+   @app.post('/process')
+   def process_document(document: PaperMageFormat):
+       # Convert at API boundary
+       docling_doc = PaperMageAdapter.from_papermage(document)
+       
+       # Process using native DoclingDocument
+       result = pipeline.process(docling_doc)
+       
+       # Convert back at API boundary
+       return PaperMageAdapter.to_papermage(result)
+   ```
+3. Create comprehensive documentation including:
+   - Architecture diagrams showing the new data flow
+   - API reference for DoclingDocument structure
+   - Guidelines for extending the pipeline
+   - Performance considerations and benchmarks
+4. Implement logging and monitoring throughout the pipeline
+5. Testing approach: Create end-to-end integration tests that verify complete document processing with various input formats and edge cases
+

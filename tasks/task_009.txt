@@ -1,0 +1,96 @@
+# Task ID: 9
+# Title: Create End-to-End Tests
+# Status: done
+# Dependencies: 6, 7
+# Priority: high
+# Description: Implement comprehensive end-to-end tests comparing PaperMage-Docling output with original PaperMage.
+# Details:
+1. Create tests/testendtoend.py with full pipeline tests
+2. Obtain reference outputs from original PaperMage for comparison
+3. Implement tests that compare our output to PaperMage reference outputs
+4. Add tests for different document types (academic papers, multi-column layouts, etc.)
+5. Create tests specifically for RTL documents
+6. Test performance on larger documents
+7. Implement tolerance for minor numerical differences in coordinates
+8. Test both direct API calls and HTTP API endpoints
+9. Document any acceptable differences from original PaperMage
+
+# Test Strategy:
+Run end-to-end tests with various document types and verify:
+1. Output structure matches PaperMage's format
+2. Entity counts and content match expected values
+3. RTL text is handled correctly
+4. Performance meets requirements
+5. No regressions in functionality compared to original PaperMage
+
+# Subtasks:
+## 1. Set up E2E Testing Framework and Environment [done]
+### Dependencies: None
+### Description: Create the foundation for end-to-end testing by setting up the testing framework, directory structure, and test environment configuration that will allow for systematic comparison between PaperMage-Docling and original PaperMage outputs.
+### Details:
+1. Create a new `tests/testendtoend.py` file and establish the basic testing structure using pytest
+2. Set up test fixtures that initialize both PaperMage and PaperMage-Docling with identical configurations
+3. Create helper functions for comparing outputs with configurable tolerance levels for numerical differences
+4. Implement utility functions to load and process test documents
+5. Set up a mechanism to capture and log differences between outputs
+6. Configure pytest to generate detailed HTML reports using pytest-html
+7. Create a test configuration file to manage test parameters and tolerance settings
+8. Add documentation for the testing approach and framework design
+9. Testing approach: Use pytest's parametrization to run the same tests with different configurations
+
+## 2. Implement Core Document Processing Comparison Tests [done]
+### Dependencies: 9.1
+### Description: Create tests that compare the fundamental document processing capabilities between PaperMage-Docling and original PaperMage, focusing on token extraction, text recognition, and basic document structure analysis.
+### Details:
+1. Obtain reference outputs from original PaperMage for a set of simple test documents
+2. Implement test cases that compare token extraction results (position, text content, metadata)
+3. Create tests for document structure analysis (paragraphs, sections, headings)
+4. Add tests for basic text recognition accuracy and completeness
+5. Implement tolerance handling for minor numerical differences in coordinates and dimensions
+6. Test both direct API calls and HTTP API endpoints for core functionality
+7. Document any acceptable differences between implementations
+8. Testing approach: Use data-driven testing to run the same tests against multiple document samples
+9. Implement detailed assertion messages that clearly identify where and how outputs differ
+
+## 3. Develop Layout and Multi-column Document Tests [done]
+### Dependencies: 9.1, 9.2
+### Description: Create specialized tests for complex document layouts, focusing on multi-column documents, tables, figures, and other complex layout elements that are challenging for document understanding systems.
+### Details:
+1. Collect a diverse set of multi-column academic papers and documents with complex layouts
+2. Obtain reference outputs from original PaperMage for these documents
+3. Implement tests that verify correct column detection and reading order
+4. Create tests for table structure recognition and extraction
+5. Add tests for figure detection and caption association
+6. Implement tests for footnotes, headers, and footers handling
+7. Test layout-specific features like margin detection and page segmentation
+8. Document any layout-specific differences between implementations
+9. Testing approach: Use visual comparison tools to highlight layout differences in addition to data structure comparisons
+
+## 4. Implement Special Document Type Tests [done]
+### Dependencies: 9.1, 9.2
+### Description: Create tests for special document types including RTL (Right-to-Left) documents, documents with mixed languages, and documents with special characters or non-standard fonts.
+### Details:
+1. Collect test documents with RTL text (Arabic, Hebrew) and mixed language content
+2. Obtain reference outputs from original PaperMage for these special documents
+3. Implement tests specifically for RTL text direction handling
+4. Create tests for mixed language detection and processing
+5. Add tests for special character rendering and recognition
+6. Implement tests for documents with non-standard fonts
+7. Test handling of documents with mixed RTL and LTR content
+8. Document any differences in special document type handling
+9. Testing approach: Focus on character-level and word-level comparisons rather than just layout for these specialized tests
+
+## 5. Develop Performance and Scale Tests [done]
+### Dependencies: 9.1, 9.2, 9.3
+### Description: Create tests that evaluate the performance characteristics and scalability of PaperMage-Docling compared to the original PaperMage, focusing on processing time, memory usage, and behavior with large documents.
+### Details:
+1. Collect a set of large documents (50+ pages) and documents with high-resolution images
+2. Obtain reference outputs and performance metrics from original PaperMage
+3. Implement tests that measure and compare processing time for different document sizes
+4. Create tests that monitor memory usage during document processing
+5. Add tests for batch processing capabilities and efficiency
+6. Implement stress tests with multiple concurrent document processing requests
+7. Test performance degradation patterns as document complexity increases
+8. Document performance differences and trade-offs between implementations
+9. Testing approach: Use pytest-benchmark for consistent performance measurements and generate comparative performance reports
+

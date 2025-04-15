@@ -1,0 +1,145 @@
+# Task ID: 15
+# Title: Implement Docling-Native Refactoring for Semantic Reader Backend
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Refactor the semantic-reader-backend to use Docling directly rather than docling-core and docling-parse, following a more native approach and aligning with Docling's architecture as outlined in refactor_prd.txt.
+# Details:
+The refactoring should aim to reduce complexity, eliminate redundant code, and better leverage Docling's built-in features while maintaining the same output format expected by clients. This implementation follows the comprehensive plan in scripts/task-master/refactor_prd.txt.
+
+# Test Strategy:
+
+
+# Subtasks:
+## 1. Integrate Docling Library and Update Dependencies [done]
+### Dependencies: None
+### Description: Add Docling library and update dependencies according to PRD Step 1
+### Details:
+1. Add docling to project dependencies in pyproject.toml or requirements.txt\n2. Remove docling-core and docling-parse packages as Docling v2+ already encapsulates this functionality\n3. Ensure required model packages (docling-ibm-models for TableFormer) are available\n4. Verify installation by creating a test script to parse a sample PDF with Docling\n5. Check Docling's documentation at https://github.com/docling-project/docling and https://pypi.org/project/docling/ for installation requirements\n\nReference: scripts/task-master/refactor_prd.txt - Section 4 'Step-by-Step Technical Refactor Plan', Step 1
+
+## 2. Create Unified Document Conversion Function [done]
+### Dependencies: None
+### Description: Implement new conversion function according to PRD Step 2
+### Details:
+1. Create a new function  in papermage_docling.converter or gateway module\n2. Use Docling's DocumentConverter with appropriate flags: \n3. Call  to get DoclingDocument result\n4. Map DoclingDocument to PaperMage JSON format (compare Docling's JSON with expected output)\n5. Return the final JSON dictionary or Pydantic model\n6. Implement toggling logic (environment variable or config flag) to switch between old pipeline and new Docling path for testing\n\nReference files to modify:\n- Create file in src/papermage_docling/converter.py or src/papermage_docling/gateway.py\n- Reference existing converter: src/papermage_docling/converters/docling_to_papermage_converter.py\n- Reference Docling documentation: https://github.com/docling-project/docling\n\nReference: scripts/task-master/refactor_prd.txt - Section 4 'Step-by-Step Technical Refactor Plan', Step 2
+
+## 3. Integrate New Conversion Function into API [done]
+### Dependencies: None
+### Description: Update API to use the new conversion function according to PRD Step 3
+### Details:
+1. Modify api/gateway.py and/or api/recipe_api.py to use the new conversion function\n2. Replace old pipeline code like  and  with \n3. Run test suite to verify outputs match\n4. Compare outputs from old and new code paths to ensure compatibility\n5. Fix any output format differences to maintain backward compatibility\n\nReference files to modify:\n- src/papermage_docling/api/gateway.py\n- src/papermage_docling/api/recipe_api.py\n- src/papermage_docling/api/papermage.py\n\nReference: scripts/task-master/refactor_prd.txt - Section 4 'Step-by-Step Technical Refactor Plan', Step 3
+
+## 4. Remove and Refactor Redundant Components [done]
+### Dependencies: None
+### Description: Remove now-unused components according to PRD Step 4
+### Details:
+1. Delete predictor classes and their tests (figure_predictor.py, table_predictor.py, language_predictor.py, structure_predictor.py, rtl_utils.py)\n2. Remove pipeline framework (pipeline.py, simple_pipeline.py)\n3. Remove DoclingPdfParser and converters (docling_pdf_parser.py, docling_to_papermage_converter.py)\n4. Simplify adapters (delete api/adapters/pdf.py, api/adapters/base.py, api/adapters/factory.py)\n5. Update imports throughout codebase to remove references to deleted files\n6. Migrate any essential logic from removed code that Docling doesn't cover (e.g., simple RTL mapping)\n7. Run tests again after removal to ensure nothing is broken\n\nFiles to remove/modify per PRD Section 1 'File-by-File Analysis and Refactoring Actions':\n- analysis/document_conversion_map.py (REMOVE)\n- api/base.py (RETAIN with changes)\n- api/adapters/base.py (REMOVE)\n- api/adapters/factory.py (REMOVE)\n- api/adapters/pdf.py (REMOVE)\n- parsers/docling_pdf_parser.py (REMOVE)\n- pipeline/pipeline.py (REMOVE)\n- pipeline/simple_pipeline.py (REMOVE)\n- predictors/figure_predictor.py (REMOVE)\n- predictors/language_predictor.py (REMOVE)\n- predictors/rtl_utils.py (REMOVE)\n- predictors/structure_predictor.py (REMOVE)\n- predictors/table_predictor.py (REMOVE)\n- rasterizers/pdf_rasterizer.py (REMOVE)\n\nReference: scripts/task-master/refactor_prd.txt - Section 4 'Step-by-Step Technical Refactor Plan', Step 4
+
+## 5. Optimize and Clean Up Codebase [done]
+### Dependencies: None
+### Description: Further optimize and clean up the refactored codebase according to PRD Step 5
+### Details:
+1. Evaluate if the document.py models can be simplified - retain models needed for output format\n2. Improve logging and error handling - wrap convert_document() in try/except and maintain consistent API error format\n3. Optimize memory usage - ensure no unnecessary objects are kept in memory\n4. Clean up terminology - remove references to 'papermage' if not needed\n5. Verify code quality with static analyzers and tests\n\nReference file to review: src/papermage_docling/converters/document.py\n\nKey considerations from PRD:\n- Document.py models: Keep if they define the expected output format\n- Error handling: Ensure API error format remains consistent with before\n- Memory optimization: Release large objects (like DoclingDocument) after conversion\n\nReference: scripts/task-master/refactor_prd.txt - Section 4 'Step-by-Step Technical Refactor Plan', Step 5
+
+## 6. Validate Schema and Output Consistency [done]
+### Dependencies: None
+### Description: Ensure schema consistency with old implementation according to PRD Step 6
+### Details:
+1. Test output JSON structure against known examples from the old system\n2. Pick sample PDFs with tables and figures for thorough comparison\n3. Compare key structures in the JSON:\n   - Top-level keys (pages, entities, fulltext, metadata)\n   - Lists of words/tokens\n   - Table structures (rows, columns, cell text)\n   - Figure data (captions, page locations)\n   - Language metadata\n4. Address any discrepancies to maintain backward compatibility\n5. Document any improvements (e.g., better table detection) while ensuring format consistency\n\nSpecific schema validation tasks:\n- Verify pages, entities, fulltext, and metadata structures match\n- Ensure words/tokens are in same order with same text content\n- Check table rows/columns match and contain identical text\n- Verify figures have same captions and locations\n- Confirm language metadata is consistent\n\nReference: scripts/task-master/refactor_prd.txt - Section 4 'Step-by-Step Technical Refactor Plan', Step 6
+
+## 7. Package and Deploy Refactored Solution [done]
+### Dependencies: None
+### Description: Prepare for deployment according to PRD Step 7
+### Details:
+1. Remove any leftover dead code or empty directories\n2. Run full test suite and perform manual API testing\n3. Create deployment plan with load testing on staging environment\n4. Update documentation to reflect the new Docling-powered architecture\n5. Deploy the refactored version\n6. Monitor performance and quality compared to previous implementation\n\nDeployment preparations:\n- Verify all tests pass\n- Test with real PDFs via API endpoints\n- Check memory and CPU usage compared to previous implementation\n- Ensure timeout settings are appropriate\n- Document improved capabilities from Docling (like better table extraction)\n- Prepare rollback plan in case of issues\n\nReference: scripts/task-master/refactor_prd.txt - Section 4 'Step-by-Step Technical Refactor Plan', Step 7\n\nImportant: Update app/README.md to reflect that the pipeline is now powered by Docling
+
+## 8. Refactor: Analysis/Document Conversion Map [done]
+### Dependencies: None
+### Description: Remove analysis/document_conversion_map.py per PRD file table
+### Details:
+File: analysis/document_conversion_map.py\n\nCurrent Purpose: Documents all points where conversions between Docling structures and the custom "PaperMage" JSON format occur. Essentially a developer map of format transformations.\n\nRetain? No - REMOVE\n\nRefactoring Action: Replace with Docling's built-in JSON export. Docling's unified conversion pipeline obviates the need for a manual conversion mapping log. All conversion logic will be handled by Docling's APIs, so this mapping file becomes unnecessary.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 9. Refactor: API Base [done]
+### Dependencies: None
+### Description: Retain and simplify api/base.py per PRD file table
+### Details:
+File: api/base.py\n\nCurrent Purpose: Defines base classes/utilities for the API layer (could include request/response models or shared API logic).\n\nRetain? Yes - RETAIN with changes\n\nRefactoring Action: Simplify references to pipeline. Remove any logic that orchestrates document conversion via the old pipeline. If base.py contains conversion helper functions, refactor them to call Docling's DocumentConverter or equivalent. Ensure that response models (if any) remain consistent.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 10. Refactor: API Gateway [done]
+### Dependencies: None
+### Description: Retain and refactor api/gateway.py per PRD file table
+### Details:
+File: api/gateway.py\n\nCurrent Purpose: Serves as a high-level facade or gateway for document processing requests. It likely mediates between API endpoints and the pipeline/recipe, handling input files and returning JSON results.\n\nRetain? Yes - RETAIN\n\nRefactoring Action: Refactor to call Docling directly. Remove custom pipeline assembly: instead of orchestrating DoclingPdfParser and predictor classes, call Docling's unified conversion (e.g. DocumentConverter().convert()). The gateway's interface (function signatures) can remain, but internally it should delegate to Docling. This significantly simplifies the code – essentially a thin wrapper around Docling's converter.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 11. Refactor: API PaperMage [done]
+### Dependencies: None
+### Description: Simplify api/papermage.py per PRD file table
+### Details:
+File: api/papermage.py\n\nCurrent Purpose: Implements the core document-processing "recipe" for the PaperMage system (possibly defines CoreRecipe or similar). Likely orchestrates the document conversion steps (parse, predictors, convert) in code, and might expose a high-level function or class for use in the API.\n\nRetain? Yes - RETAIN (simplified)\n\nRefactoring Action: Rewire to use Docling. If CoreRecipe is defined here (or in recipeapi.py), refactor it to leverage Docling's high-level pipeline. For example, if CoreRecipe.process() currently builds a pipeline and runs predictors, change it to simply call Docling's conversion and then format the result. If the concept of "recipe" is no longer needed with Docling (since Docling already encapsulates the recipe of steps internally), consider removing this abstraction and have the API call the converter directly.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 12. Refactor: API Recipe API [done]
+### Dependencies: None
+### Description: Simplify api/recipe_api.py per PRD file table
+### Details:
+File: api/recipe_api.py\n\nCurrent Purpose: Provides API endpoints for processing documents via a "recipe" (e.g. endpoints that trigger the CoreRecipe processing, possibly asynchronously). It likely wraps CoreRecipe to handle HTTP requests.\n\nRetain? Yes - RETAIN (simplified)\n\nRefactoring Action: Update endpoint implementation. Remove low-level pipeline usage and call the new high-level conversion function (from gateway or directly from Docling) that replaces CoreRecipe. The outward API (endpoints, request/response schemas) remains the same to avoid breaking clients, but internally it uses Docling's processing. If asynchronous or background task handling is present, preserve that but apply it to the new conversion call.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 13. Refactor: API Server [done]
+### Dependencies: None
+### Description: Retain api/server.py with minimal changes per PRD file table
+### Details:
+File: api/server.py\n\nCurrent Purpose: Sets up the FastAPI (or similar) server and includes route registration. It likely ties together the API endpoints defined elsewhere.\n\nRetain? Yes - RETAIN\n\nRefactoring Action: Make minimal changes. Update any imports or references if the pipeline/recipe classes move or change (for example, if server.py included the old pipeline to pre-load models, point it to Docling initialization instead). Ensure that the server still launches correctly, but now uses Docling's models (which may initialize on first use).\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 14. Refactor: API Adapters [done]
+### Dependencies: None
+### Description: Remove adapter classes per PRD file table
+### Details:
+Files:\n- api/adapters/base.py\n- api/adapters/factory.py\n- api/adapters/pdf.py\n\nCurrent Purpose: Define abstract BaseAdapter class, adapter registry, and PDF-specific adapter implementations for converting between formats.\n\nRetain? No - REMOVE ALL\n\nRefactoring Action: Eliminate custom adapter layer. With Docling handling conversion, a separate adapter abstraction is overkill. Use Docling's converter directly instead of looking up custom adapters. Remove the factory and replace usage with direct calls to Docling. The specific logic in pdf.py (handling bytes vs path, OCR flags, etc.) can be achieved by Docling's options.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 15. Refactor: CLI Converter CLI [done]
+### Dependencies: None
+### Description: Retain and simplify cli/converter_cli.py per PRD file table
+### Details:
+File: cli/converter_cli.py\n\nCurrent Purpose: Provides a command-line interface to convert documents using the pipeline (likely parses command-line args and invokes PdfToPapermageAdapter or CoreRecipe).\n\nRetain? Conditionally - RETAIN (if CLI needed)\n\nRefactoring Action: Delegate to Docling. If a CLI is still desired, simplify it to call Docling's library or Docling's own CLI. For example, use subprocess to call docling CLI or directly call the Python API. Alternatively, if maintaining a separate CLI command is needed (for custom output handling), have it call our new unified conversion function (which uses Docling internally). If the CLI is not actually used in deployment (perhaps superseded by API), it could be removed to avoid maintenance.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 16. Refactor: Docling To PaperMage Converter [done]
+### Dependencies: None
+### Description: Replace converters/docling_to_papermage_converter.py per PRD file table
+### Details:
+File: converters/docling_to_papermage_converter.py\n\nCurrent Purpose: (Very large module) Converts Docling's internal document (DoclingDocument/PdfDocument from docling-core) into the PaperMage JSON structure. It traverses pages, text lines, tables, figures, etc., constructing the final Document (via the Pydantic models in document.py). Essentially, this is a manual JSON serialization step to match the output schema.\n\nRetain? No - REMOVE (replace with simpler mapping)\n\nRefactoring Action: Use Docling's JSON or implement a lightweight mapper. Ideally, we will eliminate the need for this 3000+ line conversion logic. Docling can directly produce a "lossless JSON" export of the document. We have two options: (a) Use Docling's JSON output directly if it closely matches the current schema (less code, but verify schema differences); or (b) Write a much simpler converter that maps Docling's unified DoclingDocument dataclass to our existing Pydantic Document model (essentially a condensed version of what this file does, leveraging the fact that Docling already parsed layout, tables, etc.).\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 17. Refactor: Document Models [done]
+### Dependencies: None
+### Description: Retain converters/document.py models per PRD file table
+### Details:
+File: converters/document.py\n\nCurrent Purpose: Defines the Document data model and related classes (Entity, Span, Box) for the PaperMage JSON structure. Uses Pydantic BaseModel for easy JSON serialization. This represents the final output schema (text content, bounding boxes, entities like figures/tables, etc.).\n\nRetain? Yes - RETAIN (possibly)\n\nRefactoring Action: Reuse or update the data model. To replicate the exact JSON output, we can keep these Pydantic models as the schema. If we choose to use Docling's JSON directly, ensure that it conforms to this schema. We may need to adjust the models slightly to accommodate any additional metadata Docling provides or to align naming. The simplest path is to keep Document as is, and populate it from Docling's results. That way, consumers of the API see no change in the JSON format.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 18. Refactor: Docling PDF Parser [done]
+### Dependencies: None
+### Description: Remove parsers/docling_pdf_parser.py per PRD file table
+### Details:
+File: parsers/docling_pdf_parser.py\n\nCurrent Purpose: Wraps doclingparse library's DoclingPdfParserBase to obtain a PdfDocument (Docling's internal structured representation), then invokes DoclingToPaperMageConverter to get the final JSON format. It also applies options like OCR flags and table/figure detection toggles. In short, this class currently performs: Parse PDF -> produce DoclingDocument -> convert to JSON dict.\n\nRetain? No - REMOVE\n\nRefactoring Action: Use Docling's unified parsing. Instead of manually invoking doclingparse and then converting, call Docling's high-level API. Docling's DocumentConverter likely encapsulates parsing PDF to a DoclingDocument and may even allow direct JSON export. Thus, we don't need our own DoclingPdfParser class. The functionality is replaced by Docling itself. Any special handling (like storing interim PdfDocument or tweaking parser params) should be done via Docling's conversion options.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 19. Refactor: Pipeline Framework [done]
+### Dependencies: None
+### Description: Remove pipeline classes per PRD file table
+### Details:
+Files:\n- pipeline/pipeline.py\n- pipeline/simple_pipeline.py\n\nCurrent Purpose: Implements a custom Pipeline framework with DocumentProcessor, PipelineStep, and Pipeline classes. SimplePipeline extends Pipeline with convenience methods to add common processors and to convert to/from the PaperMage format.\n\nRetain? No - REMOVE\n\nRefactoring Action: Drop custom pipeline architecture. Docling's design already sequences parsing and enrichment internally, so we do not need to manage a pipeline ourselves. Instead of Pipeline and PipelineStep, we will rely on Docling to perform all necessary steps in the correct order. Therefore, we can remove this entire framework. Any error handling or conditional logic needed can be implemented around the single conversion call if required.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 20. Refactor: Predictor Classes [done]
+### Dependencies: None
+### Description: Remove all predictor classes per PRD file table
+### Details:
+Files:\n- predictors/figure_predictor.py\n- predictors/language_predictor.py\n- predictors/rtl_utils.py\n- predictors/structure_predictor.py\n- predictors/table_predictor.py\n\nCurrent Purpose: Implement various document analysis tasks (figure detection, language detection, RTL detection, structure analysis, table detection).\n\nRetain? No - REMOVE ALL\n\nRefactoring Action: Leverage Docling's built-in capabilities. Docling natively handles figure extraction, language detection, table structure recovery, and reading order analysis as part of its pipeline. We will rely on Docling to identify tables, figures, language metadata, and document structure, and include them in its output JSON. Any essential functionality (like simple RTL language detection) that Docling might not cover can be implemented as a simple helper function in the conversion code.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 21. Refactor: PDF Rasterizer [done]
+### Dependencies: None
+### Description: Remove rasterizers/pdf_rasterizer.py per PRD file table
+### Details:
+File: rasterizers/pdf_rasterizer.py\n\nCurrent Purpose: Provides functionality to rasterize PDF pages to images (perhaps using Poppler or PIL). This was probably used by the figure or table predictors which needed image data (for example, to run image-based models like figure classification or table structure detection on table images).\n\nRetain? No - REMOVE\n\nRefactoring Action: No longer needed explicitly. If Docling's pipeline requires page images (for visual models), Docling will handle that internally. For example, TableFormer might need an image of each table – Docling's integration likely takes care of extracting table region images behind the scenes. Similarly, figure detection in Docling could either use PDF's embedded images or rasterize if needed. We do not need to manually rasterize anything. Therefore, remove this utility.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions'
+
+## 22. Refactor: App Layer Integration [done]
+### Dependencies: None
+### Description: Update app layer to use refactored backend
+### Details:
+Focus: Ensure the app layer of the project (FastAPI routes, services, etc.) properly integrates with the refactored internals.\n\nCurrent Purpose: The app layer (FastAPI routes, etc.) currently uses the old pipeline components.\n\nRetain? Yes - RETAIN with changes\n\nRefactoring Action: Update app/pipelines.py and any other app layer code to use the new conversion function. Replace import statements that reference now-removed components (e.g., ) with imports of the new converter (e.g., ). The structure of the app code should remain largely the same, with only the calls to the papermagedocling module changing.\n\nNote: This is mentioned in a note at the end of the file-by-file analysis in the PRD, not in the main table.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions' (note after table)
+

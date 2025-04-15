@@ -1,0 +1,102 @@
+# Task ID: 4
+# Title: Implement Structure Predictor
+# Status: done
+# Dependencies: 2
+# Priority: medium
+# Description: Create a predictor that identifies document structure elements like titles, sections, and other semantic components using the native functionalities of docling, docling-parse, and docling-core.
+# Details:
+1. Create predictors/structure_predictor.py with StructurePredictor class
+2. Leverage docling's native models and utilities for layout and structure analysis
+3. Create apply() method that analyzes Document content and integrates semantic layers using docling-core
+4. Utilize docling's equivalent predictors for identifying titles, abstracts, headings, figures, tables, captions, footnotes, references, etc.
+5. Group related lines into semantic blocks (e.g., paragraphs, section headings) using docling's grouping capabilities
+6. Add identified entities to the Document's entity layers
+7. Handle post-processing for multi-line elements using docling's built-in tools
+8. Ensure compatibility with RTL text by leveraging docling's text direction handling
+
+# Test Strategy:
+Create tests in tests/testpredictors/test_structure_predictor.py that verify:
+1. Structure predictor correctly identifies known elements in test documents using docling models
+2. Title detection works as expected
+3. Section headings are properly identified
+4. Abstract and other semantic blocks are correctly labeled
+5. Test with a sample academic paper to ensure structure is properly extracted
+6. Verify all docling-supported categories (title, abstract, heading, paragraph, figure, caption, table, footnote, reference) are correctly identified
+
+# Subtasks:
+## 1. Create StructurePredictor Class and Model Loading [done]
+### Dependencies: None
+### Description: Set up the basic structure of the StructurePredictor class with model loading capabilities using docling's native models.
+### Details:
+1. Create predictors/structure_predictor.py file (note the underscore in filename)
+2. Implement StructurePredictor class with initialization parameters for docling model selection
+3. Add model loading functionality for docling models from the docling repository
+4. Implement loading of both model and tokenizer using docling-core utilities
+5. Implement caching mechanism for efficient model loading
+6. Add configuration options for model parameters and thresholds
+7. Create utility methods for model input preprocessing using docling-parse
+8. Add error handling for missing models or incompatible configurations
+9. Test model loading with different configurations
+10. Document the class and its methods with proper docstrings
+
+## 2. Implement Document Content Analysis Logic [done]
+### Dependencies: 4.1
+### Description: Create the core analysis functionality that processes document content and identifies structural elements using docling's native capabilities.
+### Details:
+1. Implement the apply(document: Document) -> None method that takes a Document object as input
+2. Use docling-parse for preprocessing document content for model input
+3. Add support for iterating over document.pages or directly over document.rows (lines)
+4. Utilize docling's feature extraction for layout analysis (text content, position on page)
+5. Create functions to convert docling model predictions to semantic classifications
+6. Add confidence scoring for predictions to enable filtering
+7. Implement batching for efficient processing of large documents
+8. Leverage docling's RTL text handling for text direction adjustments
+9. Test with various document formats and layouts
+10. Implement logging for analysis steps and decisions
+
+## 3. Develop Semantic Element Classification [done]
+### Dependencies: 4.2
+### Description: Implement specialized logic to classify document elements into categories supported by docling models: title, abstract, heading, paragraph, figure, caption, table, footnote, reference.
+### Details:
+1. Create classification functions for all docling-supported categories (title, abstract, heading, paragraph, figure, caption, table, footnote, reference)
+2. Implement mapping from docling categories to Document layers (some one-to-one, some collapsed or split)
+3. Add heuristic rules to supplement docling model predictions (e.g., titles typically appear at the top)
+4. Utilize docling's font and style analysis for identifying emphasis and importance
+5. Leverage docling's positional analysis for understanding document layout structure
+6. Add language-specific rules for common document structures
+7. Implement contextual analysis to improve classification accuracy
+8. Create validation rules to ensure consistent document structure
+9. Test classification with diverse document types
+10. Add configuration options to adjust classification thresholds
+
+## 4. Implement Semantic Block Grouping [done]
+### Dependencies: 4.3
+### Description: Create functionality to group related lines and elements into coherent semantic blocks like paragraphs, sections, and multi-line elements using docling's grouping capabilities.
+### Details:
+1. Use docling's algorithms to detect paragraph boundaries based on spacing and indentation
+2. Leverage docling's grouping logic to combine related lines into coherent blocks
+3. Add support for multi-line elements like titles that span multiple lines
+4. Utilize docling's section boundary detection based on headings and content shifts
+5. Create hierarchical grouping to represent document structure (sections containing subsections)
+6. Add handling for special cases like lists, bullet points, and numbered items
+7. Implement post-processing to refine grouping based on content coherence
+8. Add support for column-based layouts with proper reading order using docling
+9. Test with documents containing complex layouts
+10. Implement visualization tools for debugging grouping results
+
+## 5. Integrate with Document Entity Layers [done]
+### Dependencies: 4.4
+### Description: Finalize the structure predictor by adding identified semantic elements to the Document's entity layers and implementing post-processing for consistency using docling's native functionalities.
+### Details:
+1. Implement methods to add identified elements to Document entity layers using docling-core
+2. Create entity representations for different semantic elements based on docling categories
+3. Add metadata to entities (confidence scores, hierarchical relationships)
+4. Implement post-processing to ensure consistency across the document using docling utilities
+5. Add validation to check for missing or inconsistent structure elements
+6. Create methods to resolve conflicts between overlapping entities
+7. Implement serialization/deserialization of structure information
+8. Add support for updating existing document structure
+9. Create comprehensive tests for the entire structure prediction pipeline
+10. Add performance metrics collection for analysis quality assessment
+11. Leverage docling's RTL text compatibility features for final adjustments
+
