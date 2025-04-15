@@ -2,7 +2,8 @@
 Document processing endpoints for the application.
 
 This module provides endpoints for document processing, parsing,
-and conversion using the Docling document processing pipeline.
+and conversion using the local database models and optionally the 
+Docling document processing pipeline.
 """
 
 import logging
@@ -14,6 +15,16 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Q
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
+from app.dependencies.services import get_document_service
+from app.services.document_processing_service import DocumentProcessingService
+from app.schemas.documents import (
+    DocumentResponse,
+    PaperMageResponse,
+    DocumentListResponse,
+    ProcessDocumentRequest,
+    DocumentProcessingOptions
+)
+
 # Import papermage_docling API service
 try:
     from papermage_docling.api_service import get_api_service
@@ -23,284 +34,332 @@ except ImportError:
     logger.warning("papermage_docling not available. Document processing features will be disabled.")
     DOCLING_AVAILABLE = False
 
-from app.schemas.documents import (
-    DocumentResponse,
-    PaperMageResponse,
-    DocumentListResponse,
-    ProcessDocumentRequest,
-    DocumentProcessingOptions
-)
-
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.post(
-    "/parse",
-    response_model=DocumentResponse,
-    status_code=status.HTTP_200_OK,
-    tags=["documents"],
-    summary="Parse Document",
-    description="Parse a document file (PDF, DOCX, TXT) and extract structured content"
-)
+
+@router.get("/health", response_model=Dict[str, str])
+async def document_health(
+    document_service: DocumentProcessingService = Depends(get_document_service)
+):
+    """
+    Check if the document service is available.
+    
+    Returns:
+        Status information for the document service
+    """
+    # Check if external API is available
+    external_api_status = "available" if document_service.external_api_available else "unavailable"
+    
+    # Check if database is available
+    db_status = "connected"
+    
+    return {
+        "status": "ok", 
+        "database": db_status,
+        "external_api": external_api_status
+    }
+
+
+@router.post("/parse", response_model=DocumentResponse)
 async def parse_document(
     file: UploadFile = File(...),
-    page_range: Optional[str] = Form(None),
-    detect_rtl: Optional[bool] = Form(None),
-    output_format: str = Form("docling"),
-    save_document: bool = Form(True)
-) -> DocumentResponse:
+    options: Optional[DocumentProcessingOptions] = None,
+    document_service: DocumentProcessingService = Depends(get_document_service)
+):
     """
-    Parse a document file and extract structured content.
-    
-    This endpoint processes a document file and returns the structured content
-    using the Docling document processing pipeline.
+    Parse a document using the appropriate parser.
     
     Args:
-        file: The document file to parse (PDF, DOCX, or TXT)
-        page_range: Optional range of pages to parse (e.g., "1-5,7,9-11")
-        detect_rtl: Whether to detect and handle right-to-left text
-        output_format: Output format (docling or papermage)
-        save_document: Whether to save the processed document
-    
+        file: The document file
+        options: Additional parsing options
+        document_service: Document processing service from dependency injection
+        
     Returns:
-        The processed document in the requested format
+        Parsed document data
     """
-    # Check if papermage_docling is available
-    if not DOCLING_AVAILABLE:
+    # Set default options if not provided
+    if options is None:
+        options = DocumentProcessingOptions()
+    
+    # Get file extension from filename
+    file_ext = Path(file.filename).suffix.lstrip('.')
+    
+    # Check if file extension is allowed
+    if file_ext.lower() not in settings.ALLOWED_EXTENSIONS:
         raise HTTPException(
-            status_code=503,
-            detail="Document processing service is not available"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File type '{file_ext}' not supported. Allowed types: {', '.join(settings.ALLOWED_EXTENSIONS)}"
         )
     
-    # Check file type
-    allowed_extensions = getattr(settings, "ALLOWED_EXTENSIONS", ["pdf", "docx", "txt"])
-    file_ext = Path(file.filename).suffix.lower().lstrip('.')
-    
-    if file_ext not in allowed_extensions:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type: {file_ext}. Allowed types: {', '.join(allowed_extensions)}"
-        )
-    
-    # Check file size
-    max_size = getattr(settings, "MAX_FILE_SIZE_MB", 10) * 1024 * 1024  # Convert to bytes
-    file_content = await file.read()
-    
-    if len(file_content) > max_size:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File too large. Maximum size: {getattr(settings, 'MAX_FILE_SIZE_MB', 10)}MB"
-        )
-    
-    # Prepare processing options
-    options = {}
-    
-    # Parse page range
-    if page_range:
-        try:
-            page_list = []
-            for part in page_range.split(','):
-                if '-' in part:
-                    start, end = map(int, part.split('-'))
-                    page_list.extend(range(start, end + 1))
-                else:
-                    page_list.append(int(part))
-            options['page_range'] = page_list
-        except ValueError:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid page range format: {page_range}. Use format like '1-5,7,9-11'"
-            )
-    
-    # Set RTL detection
-    if detect_rtl is not None:
-        options['detect_rtl'] = detect_rtl
-    else:
-        options['detect_rtl'] = getattr(settings, "DETECT_RTL", True)
-    
-    # Set output format
-    return_papermage = output_format.lower() == 'papermage'
-    options['return_papermage'] = return_papermage
+    # Convert options to dict
+    options_dict = options.model_dump() if hasattr(options, 'model_dump') else options.dict()
     
     try:
-        # Get API service
-        api_service = get_api_service()
+        # Process document using service - now uses database
+        document = await document_service.parse_document(
+            document=file,
+            file_type=file_ext.lower(),
+            options=options_dict
+        )
         
-        # Process document
-        with tempfile.NamedTemporaryFile(suffix=f".{file_ext}", delete=False) as temp_file:
-            temp_file.write(file_content)
-            temp_file.flush()
-            
-            result = api_service.process_document(
-                temp_file.name,
-                save_result=save_document,
-                return_id=False,
-                **options
-            )
-        
-        # Return processed document
-        if return_papermage:
-            return PaperMageResponse(
-                status="success",
-                document_id=getattr(result, "id", None),
-                data=result
-            )
-        else:
-            return DocumentResponse(
-                status="success",
-                document_id=getattr(result, "id", None),
-                data=result if hasattr(result, "__dict__") else result.__dict__
-            )
-            
+        # Convert document to response model
+        return DocumentResponse.model_validate(document) if hasattr(DocumentResponse, 'model_validate') else DocumentResponse.from_orm(document)
+    
     except Exception as e:
-        logger.exception(f"Error processing document: {str(e)}")
+        logger.error(f"Error parsing document: {str(e)}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Error processing document: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to parse document: {str(e)}"
         )
 
 
-@router.get(
-    "/{document_id}",
-    response_model=DocumentResponse,
-    status_code=status.HTTP_200_OK,
-    tags=["documents"],
-    summary="Get Document",
-    description="Get a previously processed document by ID"
-)
+@router.get("/documents/{document_id}", response_model=DocumentResponse)
 async def get_document(
     document_id: str,
-    output_format: str = Query("docling", description="Output format (docling or papermage)")
-) -> DocumentResponse:
+    as_papermage: bool = Query(False, description="Return in PaperMage format"),
+    document_service: DocumentProcessingService = Depends(get_document_service)
+):
     """
-    Get a processed document by ID.
+    Get a document by ID.
     
     Args:
         document_id: The document ID
-        output_format: Output format (docling or papermage)
-    
+        as_papermage: Whether to return in PaperMage format
+        document_service: Document processing service from dependency injection
+        
     Returns:
-        The document in the requested format
+        The document data
     """
-    # Check if papermage_docling is available
-    if not DOCLING_AVAILABLE:
-        raise HTTPException(
-            status_code=503,
-            detail="Document processing service is not available"
-        )
-    
     try:
-        # Get API service
-        api_service = get_api_service()
+        # Get document from service
+        document = await document_service.get_document(document_id, as_papermage=as_papermage)
         
-        # Get document
-        as_papermage = output_format.lower() == 'papermage'
-        result = api_service.get_document(document_id, as_papermage=as_papermage)
-        
-        # Return document
-        if as_papermage:
-            return PaperMageResponse(
-                status="success",
-                document_id=document_id,
-                data=result
+        if document is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Document with ID '{document_id}' not found"
             )
-        else:
-            return DocumentResponse(
-                status="success",
-                document_id=document_id,
-                data=result if hasattr(result, "__dict__") else result.__dict__
-            )
-            
-    except Exception as e:
-        logger.exception(f"Error retrieving document: {str(e)}")
-        raise HTTPException(
-            status_code=404,
-            detail=f"Document not found or error retrieving document: {str(e)}"
-        )
-
-
-@router.get(
-    "",
-    response_model=DocumentListResponse,
-    status_code=status.HTTP_200_OK,
-    tags=["documents"],
-    summary="List Documents",
-    description="List available processed documents"
-)
-async def list_documents() -> DocumentListResponse:
-    """
-    List available processed documents.
-    
-    Returns:
-        List of document metadata
-    """
-    # Check if papermage_docling is available
-    if not DOCLING_AVAILABLE:
-        raise HTTPException(
-            status_code=503,
-            detail="Document processing service is not available"
-        )
-    
-    try:
-        # Get API service
-        api_service = get_api_service()
         
-        # List documents
-        documents = api_service.list_documents()
+        # If as_papermage is True and document is a dict (not a model), return as PaperMage format
+        if as_papermage and not hasattr(document, 'id'):
+            return document
         
-        return DocumentListResponse(
-            status="success",
-            count=len(documents),
-            documents=documents
-        )
-            
+        # Convert document to response model
+        return DocumentResponse.model_validate(document) if hasattr(DocumentResponse, 'model_validate') else DocumentResponse.from_orm(document)
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    
     except Exception as e:
-        logger.exception(f"Error listing documents: {str(e)}")
+        logger.error(f"Error getting document: {str(e)}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Error listing documents: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get document: {str(e)}"
         )
 
 
-@router.delete(
-    "/{document_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    tags=["documents"],
-    summary="Delete Document",
-    description="Delete a processed document by ID"
-)
-async def delete_document(document_id: str):
+@router.delete("/documents/{document_id}", response_model=Dict[str, bool])
+async def delete_document(
+    document_id: str,
+    document_service: DocumentProcessingService = Depends(get_document_service)
+):
     """
-    Delete a processed document by ID.
+    Delete a document by ID.
     
     Args:
         document_id: The document ID
-    """
-    # Check if papermage_docling is available
-    if not DOCLING_AVAILABLE:
-        raise HTTPException(
-            status_code=503,
-            detail="Document processing service is not available"
-        )
-    
-    try:
-        # Get API service
-        api_service = get_api_service()
+        document_service: Document processing service from dependency injection
         
-        # Delete document
-        success = api_service.delete_document(document_id)
+    Returns:
+        Success status
+    """
+    try:
+        # Delete document using service
+        success = await document_service.delete_document(document_id)
         
         if not success:
             raise HTTPException(
-                status_code=404,
-                detail=f"Document not found: {document_id}"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Document with ID '{document_id}' not found"
             )
-            
+        
+        return {"success": True}
+    
     except HTTPException:
+        # Re-raise HTTP exceptions
         raise
+    
     except Exception as e:
-        logger.exception(f"Error deleting document: {str(e)}")
+        logger.error(f"Error deleting document: {str(e)}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Error deleting document: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete document: {str(e)}"
+        )
+
+
+@router.get("/documents", response_model=DocumentListResponse)
+async def list_documents(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    include_external: bool = Query(True, description="Include documents from external storage"),
+    sync_with_external: bool = Query(True, description="Sync external documents with local database"),
+    document_service: DocumentProcessingService = Depends(get_document_service)
+):
+    """
+    List available documents.
+    
+    Args:
+        page: Page number for pagination
+        page_size: Number of items per page
+        include_external: Whether to include documents from external storage
+        sync_with_external: Whether to sync external documents with local database
+        document_service: Document processing service from dependency injection
+        
+    Returns:
+        List of document metadata
+    """
+    try:
+        # Get documents from service with pagination
+        documents = await document_service.list_documents(
+            include_external=include_external,
+            sync_with_external=sync_with_external,
+            page=page,
+            page_size=page_size
+        )
+        
+        # Get total count for pagination
+        total_count = document_service.get_document_count()
+        
+        # Convert to response model
+        document_list = [
+            DocumentResponse.model_validate(doc) if hasattr(DocumentResponse, 'model_validate') else DocumentResponse.from_orm(doc)
+            for doc in documents
+        ]
+        
+        return DocumentListResponse(
+            items=document_list,
+            total=total_count,
+            page=page,
+            page_size=page_size
+        )
+    
+    except Exception as e:
+        logger.error(f"Error listing documents: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list documents: {str(e)}"
+        )
+
+
+@router.patch("/documents/{document_id}/metadata", response_model=DocumentResponse)
+async def update_document_metadata(
+    document_id: int,
+    metadata: Dict[str, Any],
+    document_service: DocumentProcessingService = Depends(get_document_service)
+):
+    """
+    Update document metadata.
+    
+    Args:
+        document_id: The document ID
+        metadata: Metadata fields to update
+        document_service: Document processing service from dependency injection
+        
+    Returns:
+        Updated document data
+    """
+    try:
+        # Update document metadata
+        document = document_service.update_document_metadata(document_id, metadata)
+        
+        if document is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Document with ID '{document_id}' not found"
+            )
+        
+        # Convert document to response model
+        return DocumentResponse.model_validate(document) if hasattr(DocumentResponse, 'model_validate') else DocumentResponse.from_orm(document)
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    
+    except Exception as e:
+        logger.error(f"Error updating document metadata: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update document metadata: {str(e)}"
+        )
+
+
+@router.get("/stats/pipeline", response_model=Dict[str, Any])
+async def get_pipeline_stats(
+    document_service: DocumentProcessingService = Depends(get_document_service)
+):
+    """
+    Get document processing pipeline statistics.
+    
+    Args:
+        document_service: Document processing service from dependency injection
+        
+    Returns:
+        Pipeline statistics
+    """
+    try:
+        return document_service.get_pipeline_stats()
+    except Exception as e:
+        logger.error(f"Error getting pipeline stats: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get pipeline stats: {str(e)}"
+        )
+
+
+@router.get("/stats/cache", response_model=Dict[str, Any])
+async def get_cache_stats(
+    document_service: DocumentProcessingService = Depends(get_document_service)
+):
+    """
+    Get document cache statistics.
+    
+    Args:
+        document_service: Document processing service from dependency injection
+        
+    Returns:
+        Cache statistics
+    """
+    try:
+        return document_service.get_cache_stats()
+    except Exception as e:
+        logger.error(f"Error getting cache stats: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get cache stats: {str(e)}"
+        )
+
+
+@router.post("/cache/clear", response_model=Dict[str, bool])
+async def clear_document_cache(
+    document_service: DocumentProcessingService = Depends(get_document_service)
+):
+    """
+    Clear the document cache.
+    
+    Args:
+        document_service: Document processing service from dependency injection
+        
+    Returns:
+        Success status
+    """
+    try:
+        success = document_service.clear_document_cache()
+        return {"success": success}
+    except Exception as e:
+        logger.error(f"Error clearing cache: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to clear cache: {str(e)}"
         ) 

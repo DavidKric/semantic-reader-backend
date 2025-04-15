@@ -5,9 +5,12 @@ This module contains Pydantic models for document processing endpoints.
 """
 
 from typing import Dict, List, Any, Optional, Union
-from pydantic import BaseModel, Field
+from datetime import datetime
+
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.schemas.base import BaseSchema
+from app.schemas.document_entities import PageSchema, SectionSchema
 
 
 class DocumentProcessingOptions(BaseModel):
@@ -16,59 +19,89 @@ class DocumentProcessingOptions(BaseModel):
     detect_rtl: bool = True
     ocr_enabled: bool = False
     ocr_language: str = "eng"
-
-
-class ProcessDocumentRequest(BaseModel):
-    """Request model for document processing."""
-    options: Optional[DocumentProcessingOptions] = None
-    save_document: bool = True
-    output_format: str = "docling"
-
-    class Config:
-        json_schema_extra = {
+    extract_tables: bool = True
+    extract_figures: bool = True
+    extract_sections: bool = True
+    return_papermage: bool = False
+    
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
             "example": {
-                "options": {
-                    "page_range": [1, 2, 3],
-                    "detect_rtl": True,
-                    "ocr_enabled": False
-                },
-                "save_document": True,
-                "output_format": "docling"
+                "page_range": [1, 2, 3],
+                "detect_rtl": True,
+                "ocr_enabled": False,
+                "ocr_language": "eng",
+                "extract_tables": True,
+                "extract_figures": True,
+                "extract_sections": True,
+                "return_papermage": False
             }
         }
+    )
+
+
+class DocumentMetadata(BaseModel):
+    """Document metadata."""
+    language: Optional[str] = None
+    is_rtl: Optional[bool] = False
+    ocr_applied: Optional[bool] = False
+    page_count: Optional[int] = None
+    word_count: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    
+    model_config = ConfigDict(
+        populate_by_name=True,
+        from_attributes=True
+    )
 
 
 class DocumentResponse(BaseSchema):
-    """Response model for document processing endpoints."""
-    status: str = "success"
-    document_id: Optional[str] = None
-    data: Dict[str, Any]
-
-
-class PaperMageResponse(BaseSchema):
-    """Response model for PaperMage format."""
-    status: str = "success"
-    document_id: Optional[str] = None
-    data: Dict[str, Any]
-
-
-class DocumentMeta(BaseModel):
-    """Document metadata."""
-    id: str
+    """Document response."""
+    id: int
+    title: Optional[str] = None
     filename: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
-    file_type: Optional[str] = None
-    num_pages: Optional[int] = None
+    file_type: str
     language: Optional[str] = None
-    has_rtl: Optional[bool] = None
+    has_rtl: bool = False
+    storage_id: Optional[str] = None
+    storage_path: Optional[str] = None
+    processing_status: str
+    is_processed: bool
+    created_at: datetime
+    updated_at: datetime
+    num_pages: Optional[int] = None
+    word_count: Optional[int] = None
+    doc_metadata: Optional[Dict[str, Any]] = None
+    pages: Optional[List[PageSchema]] = None
+    sections: Optional[List[SectionSchema]] = None
+    
+    model_config = ConfigDict(
+        populate_by_name=True,
+        from_attributes=True
+    )
 
 
 class DocumentListResponse(BaseSchema):
-    """Response model for listing documents."""
-    status: str = "success"
-    count: int
-    documents: List[DocumentMeta]
+    """Response containing a list of documents."""
+    items: List[DocumentResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class ProcessDocumentRequest(BaseModel):
+    """Request for document processing."""
+    file_path: str
+    options: Optional[DocumentProcessingOptions] = None
+
+
+class PaperMageResponse(BaseSchema):
+    """PaperMage format document response."""
+    document_id: Optional[str] = None
+    status: str
+    data: Dict[str, Any]
 
 
 class DocumentAnalysisRequest(BaseModel):

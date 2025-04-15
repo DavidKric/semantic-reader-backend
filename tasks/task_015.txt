@@ -143,3 +143,376 @@ File: rasterizers/pdf_rasterizer.py\n\nCurrent Purpose: Provides functionality t
 ### Details:
 Focus: Ensure the app layer of the project (FastAPI routes, services, etc.) properly integrates with the refactored internals.\n\nCurrent Purpose: The app layer (FastAPI routes, etc.) currently uses the old pipeline components.\n\nRetain? Yes - RETAIN with changes\n\nRefactoring Action: Update app/pipelines.py and any other app layer code to use the new conversion function. Replace import statements that reference now-removed components (e.g., ) with imports of the new converter (e.g., ). The structure of the app code should remain largely the same, with only the calls to the papermagedocling module changing.\n\nNote: This is mentioned in a note at the end of the file-by-file analysis in the PRD, not in the main table.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions' (note after table)
 
+## 23. Integrate Document Models in DocumentProcessingService [pending]
+### Dependencies: None
+### Description: Extend DocumentProcessingService to use local DB models for persistence alongside external service API calls.
+### Details:
+1. Modify the DocumentProcessingService class to use SQLAlchemy models for document storage and retrieval
+2. When a document is processed, create/update a Document record in the database with metadata and processing status
+3. Update the BaseService CRUD methods to interact with the Document model
+4. Implement a mechanism to sync between external API service results and local database records
+5. Update methods like get_document(), list_documents() to fetch from the database first, then enrich with external service data if needed
+6. Add proper transaction handling for database operations
+7. Implement caching strategy to reduce redundant API calls
+
+**Implementation Guide:**
+1. First, review app/services/document_processing_service.py and app/services/base.py to understand current implementation
+2. Examine app/models/document.py to understand the SQLAlchemy models (Document, Page, etc.)
+3. Review app/dependencies/database.py for the database session dependency
+4. Modify DocumentProcessingService's __init__ method to accept both db_session and api_service:
+```python
+def __init__(self, db_session: Session, api_service: Optional[Any] = None):
+    super().__init__(db_session, Document)
+    self.api_service = api_service or get_api_service()
+```
+5. Update methods to store/retrieve from database:
+```python
+async def parse_document(self, file: UploadFile, options: Dict[str, Any] = None) -> Document:
+    # Create DB record first with status "processing"
+    db_document = Document(
+        filename=file.filename,
+        status="processing",
+        # Add other metadata fields
+    )
+    self.db_session.add(db_document)
+    self.db_session.commit()
+    
+    try:
+        # Call external API
+        api_result = await self.api_service.process_document(file, options)
+        
+        # Update DB record with results
+        db_document.status = "completed"
+        # Map API result fields to document model fields
+        db_document.metadata = api_result.get("metadata", {})
+        # Create related records (pages, sections, etc.)
+        
+        self.db_session.commit()
+        return db_document
+    except Exception as e:
+        db_document.status = "failed"
+        db_document.error_message = str(e)
+        self.db_session.commit()
+        raise
+```
+
+**Reference:**
+- According to refactor_prd_part_2.md, the DocumentProcessingService is marked as "Partial" because it currently acts as a wrapper around the external papermage_docling API service, but doesn't use the local database.
+- The updated instructions specifically call for integrating the DB models: "Extend DocumentProcessingService to use the local Document model for persistence. For example, when a document is processed, save or update a Document record in the database (perhaps storing metadata and status), using the BaseService CRUD methods."
+
+## 24. Refactor Document API Routes to Use Service Layer with Database [pending]
+### Dependencies: 23
+### Description: Update document-related API endpoints to utilize the DocumentProcessingService with local database storage.
+### Details:
+1. Modify document API routes to call DocumentProcessingService methods that handle database records
+2. Update POST /parse endpoint to create a Document entry in the database, then trigger external processing
+3. Update GET /documents/{id} to retrieve from the database, with optional enrichment from external service
+4. Modify GET /documents to list documents from the database instead of directly from the external service
+5. Ensure DELETE and other operations properly update database state
+
+**Implementation Guide:**
+1. Review app/api/v1/documents.py to understand the current API routes
+2. Update endpoints to use the enhanced DocumentProcessingService:
+```python
+@router.post("/parse", response_model=DocumentResponse)
+async def parse_document(
+    file: UploadFile = File(...),
+    options: Optional[DocumentParseOptions] = None,
+    document_service: DocumentProcessingService = Depends(get_document_service),
+):
+    # DocumentProcessingService now handles both DB operations and API calls
+    db_document = await document_service.parse_document(file, options.dict() if options else {})
+    return DocumentResponse.from_orm(db_document)
+
+@router.get("/documents/{document_id}", response_model=DocumentResponse)
+async def get_document(
+    document_id: str,
+    document_service: DocumentProcessingService = Depends(get_document_service),
+):
+    # Get from DB with fallback to API if needed
+    document = await document_service.get_document(document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return DocumentResponse.from_orm(document)
+```
+3. Ensure proper error handling for database operations
+4. Add appropriate logging for database interactions
+
+**Reference:**
+- According to refactor_prd_part_2.md, the API routes in app/api/v1/documents.py are marked as "Partial" because they directly call the external service instead of using the database.
+- The updated instructions call for refactoring these routes to "use the service layer with DB" by having them call methods in DocumentProcessingService that handle DB records.
+- The PRD states: "Refactor these routes to call methods in DocumentProcessingService that handle DB records. For instance, POST /parse should create a Document entry (status 'processing') then trigger external processing, updating the record upon completion."
+
+## 25. Migrate Legacy API Endpoints to Versioned Structure [pending]
+### Dependencies: None
+### Description: Move legacy endpoints (convert.py and recipe.py) into the versioned API structure.
+### Details:
+1. Analyze the functionality of app/api/convert.py and app/api/recipe.py
+2. Determine appropriate location for this functionality within the versioned API structure (e.g., in app/api/v1/analysis.py, app/api/v1/documents.py, or create new modules)
+3. Move the endpoint handlers to the appropriate versioned modules while maintaining the same functionality
+4. Update dependencies and imports as needed
+5. Ensure consistent error handling across all endpoints
+6. Add appropriate route prefix and tags for the migrated endpoints
+7. Update any client code that may be calling these endpoints directly
+
+**Implementation Guide:**
+1. First, examine the current implementation of convert.py and recipe.py:
+```bash
+# Review the files to understand their functionality
+```
+
+2. For convert.py endpoints, integrate them into appropriate v1 modules:
+```python
+# If moving to app/api/v1/documents.py or creating app/api/v1/convert.py
+from fastapi import APIRouter, Depends, HTTPException
+# ... other imports
+
+router = APIRouter()
+
+@router.post("/convert", response_model=ConversionResponse)
+async def convert_document(
+    # ... parameters
+):
+    # Implementation from original endpoint
+    # Ensure it uses the service layer properly
+    pass
+```
+
+3. Update app/api/__init__.py to remove the legacy routers after migration
+4. Test the migrated endpoints for functionality and backward compatibility
+
+**Reference:**
+- According to refactor_prd_part_2.md, the "Legacy API Endpoints" (app/api/convert.py and app/api/recipe.py) are marked as "Not Done" because they remain outside the versioned API structure.
+- The PRD states: "According to the PRD, all endpoints should reside under a versioned module, so leaving these here is a misalignment."
+- The updated instructions recommend to "Migrate or Remove" these endpoints: "If these endpoints are still needed, they should be moved into the v1 package (e.g. integrated into analysis.py or documents.py as appropriate) so that all API routes are under /api/v1."
+
+## 26. Enhance Middleware Configuration in main.py [pending]
+### Dependencies: None
+### Description: Configure global middleware for CORS, logging, and error handling in app/main.py.
+### Details:
+1. Review current middleware configuration in app/main.py
+2. Ensure CORS middleware is properly configured using settings from config.py
+3. Add exception handlers for consistent error responses
+4. Configure logging middleware using settings.LOG_FORMAT and settings.LOG_LEVEL
+5. Add startup event for database initialization if needed
+6. Implement request ID tracking for better request tracing
+7. Add performance monitoring middleware if appropriate
+
+**Implementation Guide:**
+1. Review the current app/main.py implementation and app/core/config.py settings
+2. Update or add CORS middleware configuration:
+```python
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+3. Add exception handlers for consistent error responses:
+```python
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    # Log the exception
+    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"}
+    )
+```
+
+4. Configure logging setup in a startup event:
+```python
+import logging
+
+@app.on_event("startup")
+async def configure_logging():
+    configure_logging(settings.LOG_LEVEL, settings.LOG_FORMAT)
+```
+
+5. Add database initialization in startup event if needed:
+```python
+from app.core.database import Base, engine
+
+@app.on_event("startup")
+async def initialize_database():
+    # Create database tables
+    Base.metadata.create_all(bind=engine)
+```
+
+**Reference:**
+- According to refactor_prd_part_2.md, the app/main.py file is marked as "Completed" but with a "Minor enhancement" needed for middleware configuration.
+- The PRD suggests: "Confirm that any global middleware (e.g. CORS, exception handlers) and startup events (for DB initialization) are configured here as intended by the PRD. If not (or if using default settings), consider adding them using values from config.py (e.g. allowed origins from settings.ALLOWED_ORIGINS)."
+
+## 27. Ensure Consistent Logging Configuration in Application [pending]
+### Dependencies: None
+### Description: Verify and configure consistent logging throughout the application using the centralized logging utility.
+### Details:
+1. Review app/utils/logging.py to understand the logging utilities provided
+2. Ensure app/main.py and other modules use this centralized logging configuration
+3. Configure logging.basicConfig using settings.LOG_LEVEL and settings.LOG_FORMAT
+4. Add appropriate logging statements throughout the application, especially for service layer operations
+5. Implement request ID tracking through logging context for better traceability
+6. Add structured logging for machine-readable logs if appropriate
+
+**Implementation Guide:**
+1. Review the current app/utils/logging.py implementation
+2. Update main.py to initialize logging configuration at startup:
+```python
+from app.utils.logging import configure_logging
+
+@app.on_event("startup")
+async def startup_event():
+    configure_logging(settings.LOG_LEVEL, settings.LOG_FORMAT)
+```
+
+3. Ensure utility functions in logging.py for creating loggers:
+```python
+# In app/utils/logging.py
+import logging
+from app.core.config import settings
+
+def configure_logging(log_level=None, log_format=None):
+    """Configure global logging settings."""
+    level = log_level or settings.LOG_LEVEL
+    format_str = log_format or settings.LOG_FORMAT
+    
+    logging.basicConfig(
+        level=getattr(logging, level),
+        format=format_str
+    )
+
+def get_logger(name):
+    """Get a logger with the specified name."""
+    return logging.getLogger(name)
+```
+
+4. Update service classes to use the centralized logger:
+```python
+# In service files
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
+
+class SomeService:
+    def some_method(self):
+        logger.info("Processing operation")
+        # ...
+```
+
+**Reference:**
+- According to refactor_prd_part_2.md, the app/utils/logging.py component is marked as "Completed" but with an instruction to "Ensure that app/main.py or other modules use this logging configuration on startup."
+- The suggestion is to configure "logging.basicConfig with the format from settings" to ensure consistent logging throughout the application.
+
+## 28. Complete Database Integration Test Suite [pending]
+### Dependencies: 23, 24, 25
+### Description: Develop comprehensive tests for the integrated database functionality to ensure all components work together correctly.
+### Details:
+1. Create integration tests for DocumentProcessingService with database operations
+2. Test API endpoints with database integration
+3. Implement test fixtures for database setup and teardown
+4. Test synchronization between database and external service
+5. Ensure proper error handling and transaction management in tests
+6. Verify data consistency between API responses and database state
+7. Implement performance tests for database operations
+
+**Implementation Guide:**
+1. Create test fixtures for database testing:
+```python
+# In tests/conftest.py
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.core.database import Base
+from app.models.document import Document
+from app.services.document_processing_service import DocumentProcessingService
+
+@pytest.fixture
+def test_db():
+    """Create an in-memory SQLite database for testing."""
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    TestingSessionLocal = sessionmaker(bind=engine)
+    db = TestingSessionLocal()
+    
+    try:
+        yield db
+    finally:
+        db.close()
+        
+@pytest.fixture
+def document_service(test_db, mock_api_service):
+    """Create a DocumentProcessingService with test dependencies."""
+    return DocumentProcessingService(test_db, mock_api_service)
+```
+
+2. Write tests for database operations in DocumentProcessingService:
+```python
+# In tests/services/test_document_processing_service.py
+import pytest
+from app.models.document import Document
+
+def test_create_document_in_db(document_service, test_db):
+    """Test creating a document record in the database."""
+    # Setup test data
+    doc_data = {
+        "filename": "test.pdf",
+        "status": "completed",
+        "metadata": {"language": "en"}
+    }
+    
+    # Create document
+    document = document_service.create(**doc_data)
+    
+    # Verify document was created in DB
+    assert document.id is not None
+    assert document.filename == "test.pdf"
+    
+    # Verify it can be retrieved
+    retrieved = document_service.get(document.id)
+    assert retrieved is not None
+    assert retrieved.id == document.id
+```
+
+3. Create API tests with database integration:
+```python
+# In tests/api/test_document_api.py
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+
+def test_parse_document_endpoint_with_db_integration(monkeypatch, test_db):
+    """Test the document parsing endpoint with database integration."""
+    # Setup mocks and test data
+    # ...
+    
+    # Make API request
+    response = client.post("/api/v1/documents/parse", ...)
+    
+    # Verify response
+    assert response.status_code == 200
+    
+    # Verify database state
+    document = test_db.query(Document).first()
+    assert document is not None
+    assert document.status == "completed"
+```
+
+**Reference:**
+- The components marked as "Partial" in refactor_prd_part_2.md (DocumentProcessingService and document API routes) need to be tested after integration with the database.
+- This subtask ensures comprehensive testing of the database integration to verify all components work together correctly.
+- This follows the clean architecture principles mentioned in the PRD, ensuring proper separation of concerns between API, service layer, and database.
+

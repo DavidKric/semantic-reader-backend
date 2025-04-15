@@ -10,12 +10,15 @@ import uuid
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import api_router
 from app.core.config import settings
+from app.core.database import Base, engine
 from app.utils.logging import configure_logging, log_request_details
 
 
@@ -34,14 +37,25 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     
-    # Any additional startup logic here (database connections, etc.)
+    # Initialize database if configured
+    if engine is not None:
+        try:
+            # Create all tables defined in models
+            logger.info("Creating database tables if they don't exist...")
+            Base.metadata.create_all(bind=engine)
+            logger.info("Database tables created successfully")
+        except Exception as e:
+            logger.error(f"Error creating database tables: {e}")
     
     yield
     
     # Shutdown
     logger.info(f"Shutting down {settings.APP_NAME}")
     
-    # Any additional cleanup logic here
+    # Database cleanup if needed
+    if engine is not None:
+        # Any database cleanup can go here
+        logger.info("Database connections closed")
 
 
 def create_application() -> FastAPI:
@@ -71,6 +85,40 @@ def create_application() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    
+    # Add exception handlers
+    @application.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+        """Handle HTTP exceptions."""
+        logger.warning(f"HTTP exception: {exc.status_code} - {exc.detail}")
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail}
+        )
+    
+    @application.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        """Handle request validation errors."""
+        logger.warning(f"Validation error: {exc.errors()}")
+        return JSONResponse(
+            status_code=422,
+            content={
+                "detail": "Validation error",
+                "errors": exc.errors()
+            }
+        )
+    
+    @application.exception_handler(Exception)
+    async def general_exception_handler(request: Request, exc: Exception):
+        """Handle unhandled exceptions."""
+        logger.exception(f"Unhandled exception: {str(exc)}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": "Internal server error",
+                "message": str(exc) if settings.DEBUG_MODE else "An error occurred processing your request"
+            }
+        )
     
     # Add request logging middleware
     @application.middleware("http")

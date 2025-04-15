@@ -1,26 +1,31 @@
 """
-Pipeline service for managing document processing pipelines.
+Pipeline service for document processing operations.
 
-This service provides methods for configuring and managing the document
-processing pipeline, including predictor configuration and pipeline customization.
+This service provides utilities for managing and configuring
+document processing pipelines and analyzers.
 """
 
 import logging
-from typing import Dict, List, Any, Optional, Union, Type
+from typing import Dict, List, Any, Optional
+
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models.base import BaseModel
 from app.services.base import BaseService
 
 # Import papermage_docling components
 try:
-    from papermage_docling.pipeline import Pipeline, SimplePipeline, DocumentProcessor
+    # Import predictor utilities
     from papermage_docling.predictors import (
-        StructurePredictor, FigurePredictor, TablePredictor, LanguagePredictor,
-        get_language_predictor, get_structure_predictor, get_figure_predictor, get_table_predictor
+        get_structure_predictor,
+        get_figure_predictor,
+        get_table_predictor,
+        get_language_predictor
     )
     DOCLING_AVAILABLE = True
 except ImportError:
-    logging.warning("papermage_docling not available. Pipeline service will be disabled.")
+    logging.warning("papermage_docling not available. Pipeline features will be disabled.")
     DOCLING_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -34,9 +39,16 @@ class PipelineService(BaseService):
     document processing pipeline, including predictor configuration.
     """
     
-    def __init__(self):
-        """Initialize the pipeline service."""
-        super().__init__()
+    def __init__(self, db: Optional[Session] = None):
+        """
+        Initialize the pipeline service.
+        
+        Args:
+            db: Optional database session
+        """
+        if db:
+            # Initialize base service with a placeholder model
+            super().__init__(BaseModel, db)
         
         if not DOCLING_AVAILABLE:
             logger.warning("Pipeline service initialized without docling support.")
@@ -79,87 +91,127 @@ class PipelineService(BaseService):
             logger.error(f"Failed to initialize predictors: {e}")
             raise
     
-    def get_pipeline_config(self) -> Dict[str, Any]:
+    def get_available_predictors(self) -> List[str]:
         """
-        Get the current pipeline configuration.
+        Get available predictors.
         
         Returns:
-            Dictionary with pipeline configuration
+            List of available predictor names
         """
         if not DOCLING_AVAILABLE:
-            raise ValueError("Pipeline service is not available (docling not installed)")
+            raise ValueError("Pipeline features are not available (docling not installed)")
         
-        pipeline = self.pipeline
-        
-        # Extract pipeline type
-        pipeline_type = "SimplePipeline" if isinstance(pipeline, SimplePipeline) else "Pipeline"
-        
-        # Extract steps
-        steps = [step.__class__.__name__ for step in pipeline.steps]
-        
-        # Extract configuration
-        config = {
-            "ocr_enabled": getattr(pipeline, "ocr_enabled", settings.OCR_ENABLED),
-            "ocr_language": getattr(pipeline, "ocr_language", settings.OCR_LANGUAGE),
-            "detect_rtl": getattr(pipeline, "detect_rtl", settings.DETECT_RTL),
-        }
-        
-        # Add predictor-specific configurations
-        predictor_configs = {}
-        for predictor_name, predictor in self.predictors.items():
-            if hasattr(predictor, 'get_config'):
-                predictor_configs[predictor_name] = predictor.get_config()
-            else:
-                # Extract basic attributes if get_config not available
-                predictor_configs[predictor_name] = {
-                    k: getattr(predictor, k) 
-                    for k in dir(predictor) 
-                    if not k.startswith('_') and not callable(getattr(predictor, k))
-                }
-        
-        return {
-            "pipeline_type": pipeline_type,
-            "steps": steps,
-            "config": config,
-            "predictors": predictor_configs
-        }
+        return list(self.predictors.keys())
     
-    def configure_predictor(self, predictor_type: str, config: Dict[str, Any]) -> Dict[str, Any]:
+    def get_predictor_config(self, predictor_name: str) -> Dict[str, Any]:
         """
-        Configure a specific predictor.
+        Get predictor configuration.
         
         Args:
-            predictor_type: The type of predictor (structure, figure, table, language)
-            config: Configuration parameters
+            predictor_name: The name of the predictor
+            
+        Returns:
+            Predictor configuration dictionary
+        """
+        if not DOCLING_AVAILABLE:
+            raise ValueError("Pipeline features are not available (docling not installed)")
+        
+        if predictor_name not in self.predictors:
+            raise ValueError(f"Predictor '{predictor_name}' not found")
+        
+        predictor = self.predictors[predictor_name]
+        
+        # Return configuration if available
+        if hasattr(predictor, "get_config"):
+            return predictor.get_config()
+        
+        # Otherwise, return basic info
+        return {
+            "name": predictor_name,
+            "type": type(predictor).__name__,
+            "enabled": True
+        }
+    
+    def update_predictor_config(self, predictor_name: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update predictor configuration.
+        
+        Args:
+            predictor_name: The name of the predictor
+            config: Configuration dictionary
             
         Returns:
             Updated predictor configuration
         """
         if not DOCLING_AVAILABLE:
-            raise ValueError("Pipeline service is not available (docling not installed)")
+            raise ValueError("Pipeline features are not available (docling not installed)")
         
-        if predictor_type not in self.predictors:
-            raise ValueError(f"Predictor type '{predictor_type}' not found")
+        if predictor_name not in self.predictors:
+            raise ValueError(f"Predictor '{predictor_name}' not found")
         
-        predictor = self.predictors[predictor_type]
+        predictor = self.predictors[predictor_name]
         
-        # Update predictor configuration
+        # Update configuration if available
+        if hasattr(predictor, "update_config"):
+            return predictor.update_config(config)
+        
+        # Otherwise, try to set attributes
         for key, value in config.items():
             if hasattr(predictor, key):
                 setattr(predictor, key, value)
         
-        # Get updated configuration
-        updated_config = {}
-        if hasattr(predictor, 'get_config'):
-            updated_config = predictor.get_config()
-        else:
-            updated_config = {
-                k: getattr(predictor, k) 
-                for k in dir(predictor) 
-                if not k.startswith('_') and not callable(getattr(predictor, k))
-            }
+        return self.get_predictor_config(predictor_name)
+    
+    def get_pipeline_config(self) -> Dict[str, Any]:
+        """
+        Get pipeline configuration.
         
-        return updated_config
+        Returns:
+            Pipeline configuration dictionary
+        """
+        if not DOCLING_AVAILABLE:
+            raise ValueError("Pipeline features are not available (docling not installed)")
+        
+        # Get pipeline configuration
+        config = {
+            "predictors": self.get_available_predictors(),
+            "settings": {
+                "ocr_enabled": settings.OCR_ENABLED,
+                "ocr_language": settings.OCR_LANGUAGE,
+                "detect_rtl": settings.DETECT_RTL
+            }
+        }
+        
+        return config
+    
+    def update_pipeline_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update pipeline configuration.
+        
+        Args:
+            config: Configuration dictionary
+            
+        Returns:
+            Updated pipeline configuration
+        """
+        if not DOCLING_AVAILABLE:
+            raise ValueError("Pipeline features are not available (docling not installed)")
+        
+        # Update pipeline configuration
+        if "settings" in config:
+            settings_config = config["settings"]
+            
+            # Update OCR settings
+            if "ocr_enabled" in settings_config:
+                settings.OCR_ENABLED = settings_config["ocr_enabled"]
+            
+            if "ocr_language" in settings_config:
+                settings.OCR_LANGUAGE = settings_config["ocr_language"]
+            
+            if "detect_rtl" in settings_config:
+                settings.DETECT_RTL = settings_config["detect_rtl"]
+        
+        return self.get_pipeline_config()
     
     def customize_pipeline(self, steps: List[str], parameters: Dict[str, Any] = None) -> Dict[str, Any]:
         """

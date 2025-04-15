@@ -8,7 +8,8 @@ paragraphs, and text blocks in the database and for API responses.
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, ForeignKey, JSON
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped
+from sqlalchemy.ext.mutable import MutableDict
 
 from app.models.base import BaseModel
 
@@ -40,12 +41,13 @@ class Document(BaseModel):
     storage_id = Column(String(64), nullable=True, index=True)  # ID in document storage
     
     # Metadata and extraction flags
-    doc_metadata = Column(JSON, nullable=True)
+    doc_metadata = Column(MutableDict.as_mutable(JSON), default=dict)
     ocr_applied = Column(Boolean, default=False)
     
     # Relationships
     pages = relationship("Page", back_populates="document", cascade="all, delete-orphan")
     sections = relationship("Section", back_populates="document", cascade="all, delete-orphan")
+    paragraphs = relationship("Paragraph", back_populates="document", cascade="all, delete-orphan")
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert document to dictionary."""
@@ -79,7 +81,7 @@ class Page(BaseModel):
     paragraphs = relationship("Paragraph", back_populates="page", cascade="all, delete-orphan")
     
     # Metadata
-    doc_metadata = Column(JSON, nullable=True)
+    doc_metadata = Column(MutableDict.as_mutable(JSON), default=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert page to dictionary."""
@@ -120,7 +122,7 @@ class Section(BaseModel):
     text = Column(Text, nullable=True)
     
     # Metadata
-    doc_metadata = Column(JSON, nullable=True)
+    doc_metadata = Column(MutableDict.as_mutable(JSON), default=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert section to dictionary."""
@@ -167,7 +169,7 @@ class Paragraph(BaseModel):
     section = relationship("Section", back_populates="paragraphs")
     
     # Metadata
-    doc_metadata = Column(JSON, nullable=True)
+    doc_metadata = Column(MutableDict.as_mutable(JSON), default=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert paragraph to dictionary."""
@@ -211,7 +213,7 @@ class Figure(BaseModel):
     page = relationship("Page")
     
     # Metadata
-    doc_metadata = Column(JSON, nullable=True)
+    doc_metadata = Column(MutableDict.as_mutable(JSON), default=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert figure to dictionary."""
@@ -249,14 +251,14 @@ class Table(BaseModel):
     y1 = Column(Float, nullable=True)
     
     # Table data (can be stored as JSON or in related table cell records)
-    data = Column(JSON, nullable=True)
+    data = Column(MutableDict.as_mutable(JSON), nullable=True)
     
     # Relationships
     document = relationship("Document")
     page = relationship("Page")
     
     # Metadata
-    doc_metadata = Column(JSON, nullable=True)
+    doc_metadata = Column(MutableDict.as_mutable(JSON), default=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert table to dictionary."""

@@ -10,7 +10,7 @@ import json
 import uuid
 from typing import List, Optional, Dict, Any
 
-from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks, HTTPException, Depends
+from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks, HTTPException, Depends, status
 from fastapi.responses import JSONResponse
 
 from app.models import (
@@ -18,12 +18,14 @@ from app.models import (
     ConversionOptions, DocumentResult
 )
 from app.pipelines import document_processor, job_store
+from app.dependencies.services import get_document_service
+from app.services.document_processing_service import DocumentProcessingService
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 # Create router
-router = APIRouter(prefix=f"/{settings.API_VERSION}", tags=["Document Conversion"])
+router = APIRouter(tags=["Document Conversion"])
 
 @router.post(
     "/convert/url",
@@ -63,44 +65,48 @@ async def convert_from_url(
 @router.post(
     "/convert/file",
     response_model=ConvertResponse,
-    summary="Convert uploaded documents",
-    description="Process uploaded document files and convert them to structured data."
+    summary="Convert document from file upload",
+    description="Process an uploaded document and convert it to structured data."
 )
 async def convert_from_file(
     background_tasks: BackgroundTasks,
-    files: List[UploadFile] = File(...),
-    options: Optional[str] = Form(None)
+    file: UploadFile = File(...),
+    options: Optional[str] = Form(None),
+    document_service: DocumentProcessingService = Depends(get_document_service)
 ) -> ConvertResponse:
     """
-    Process uploaded document files.
+    Process an uploaded document.
     
     Args:
         background_tasks: FastAPI background tasks
-        files: List of uploaded files to process
+        file: Document file to process
         options: JSON string of conversion options
+        document_service: Document processing service from dependency injection
         
     Returns:
         Job information and status
     """
-    logger.info(f"Received request to convert {len(files)} uploaded files")
+    # Generate job ID
+    job_id = str(uuid.uuid4())
+    logger.info(f"Received file conversion request, job_id: {job_id}")
     
     # Parse options
-    conversion_options = None
+    conversion_options = {}
     if options:
         try:
             options_dict = json.loads(options)
             conversion_options = ConversionOptions(**options_dict).dict()
         except Exception as e:
             logger.error(f"Invalid conversion options: {e}")
-            raise HTTPException(status_code=400, detail=f"Invalid conversion options: {str(e)}")
-    
-    # Generate job ID
-    job_id = str(uuid.uuid4())
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail=f"Invalid conversion options: {str(e)}"
+            )
     
     # Process in background
     background_tasks.add_task(
-        document_processor.process_file_documents,
-        files,
+        document_processor.process_uploaded_document,
+        file,
         job_id,
         conversion_options
     )
@@ -108,53 +114,42 @@ async def convert_from_file(
     return ConvertResponse(job_id=job_id, status="processing")
 
 @router.get(
-    "/job/{job_id}",
+    "/convert/status/{job_id}",
     response_model=JobStatusResponse,
-    summary="Get job status",
-    description="Check the status of a document processing job and retrieve results if available."
+    summary="Get conversion job status",
+    description="Get the status and result of a document conversion job."
 )
-async def get_job_status(job_id: str) -> JobStatusResponse:
+async def get_conversion_status(job_id: str) -> JobStatusResponse:
     """
-    Get the status of a document processing job.
+    Get the status of a document conversion job.
     
     Args:
-        job_id: ID of the processing job
+        job_id: ID of the conversion job
         
     Returns:
-        Job status and results (if available)
+        Job status and result (if available)
         
     Raises:
         HTTPException: If job not found
     """
-    logger.info(f"Checking status for job {job_id}")
+    logger.info(f"Checking status for conversion job {job_id}")
     
     job_data = job_store.get_job_status(job_id)
     if not job_data:
-        logger.warning(f"Job {job_id} not found")
-        raise HTTPException(status_code=404, detail="Job not found")
+        logger.warning(f"Conversion job {job_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Job not found"
+        )
     
-    # Convert to response model
+    # Convert internal job status to response model
     response = JobStatusResponse(
         job_id=job_id,
         status=job_data.get("status", "processing"),
-        created_at=job_data.get("created_at", ""),
-        updated_at=job_data.get("updated_at"),
-        results=None
+        documents=job_data.get("documents", []),
+        progress=job_data.get("progress", 0),
+        total=job_data.get("total", 0),
+        errors=job_data.get("errors", [])
     )
-    
-    # Add results if available
-    if job_data.get("status") == "completed" and "results" in job_data:
-        results = []
-        for result in job_data["results"]:
-            document_result = DocumentResult(
-                status=result.get("status", "failed"),
-                document=result.get("document") if result.get("status") == "success" else None,
-                error=result.get("error"),
-                filename=result.get("filename"),
-                url=result.get("url")
-            )
-            results.append(document_result)
-        
-        response.results = results
     
     return response 

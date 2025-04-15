@@ -11,6 +11,15 @@ import pytest
 import logging
 from pathlib import Path
 from datetime import datetime
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.main import app
+from app.core.database import Base, get_db
+from app.services.document_processing_service import DocumentProcessingService
+from app.models.document import Document
 
 # Get the test configuration file
 CONFIG_FILE = Path(__file__).parent / "e2e_test_config.json"
@@ -132,3 +141,100 @@ def setup_test_environment():
                 del os.environ[key]
         else:
             os.environ[key] = value 
+
+@pytest.fixture(scope="function")
+def test_db_engine():
+    """Create a SQLite in-memory database engine for testing."""
+    # Use in-memory SQLite for tests
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
+    )
+    # Create tables
+    Base.metadata.create_all(bind=engine)
+    
+    yield engine
+    
+    # Drop tables after tests
+    Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(scope="function")
+def test_db(test_db_engine):
+    """Create a database session for testing."""
+    # Create session factory
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_db_engine)
+    # Create db session
+    db = TestingSessionLocal()
+    
+    yield db
+    
+    # Close session after tests
+    db.close()
+
+
+@pytest.fixture(scope="function")
+def client(test_db):
+    """Create a FastAPI test client with a test database."""
+    # Override the dependency to use the test database
+    def override_get_db():
+        try:
+            yield test_db
+        finally:
+            pass
+    
+    app.dependency_overrides[get_db] = override_get_db
+    
+    # Create test client
+    test_client = TestClient(app)
+    
+    yield test_client
+    
+    # Clean up after tests
+    app.dependency_overrides = {}
+
+
+@pytest.fixture
+def document_service(test_db):
+    """
+    Create a document processing service instance with the test database.
+    
+    Args:
+        test_db: The test database session fixture
+        
+    Returns:
+        DocumentProcessingService: Service instance with test DB
+    """
+    return DocumentProcessingService(db=test_db)
+
+
+@pytest.fixture
+def sample_document(test_db):
+    """
+    Create a sample document in the test database.
+    
+    Args:
+        test_db: The test database session fixture
+        
+    Returns:
+        Document: A sample document for testing
+    """
+    document = Document(
+        title="Test Document",
+        filename="test_document.pdf",
+        file_type="pdf",
+        processing_status="completed",
+        is_processed=True,
+        language="en",
+        has_rtl=False,
+        num_pages=5,
+        word_count=1000,
+        doc_metadata={"test": "metadata"}
+    )
+    
+    test_db.add(document)
+    test_db.commit()
+    test_db.refresh(document)
+    
+    return document 
