@@ -1,6 +1,6 @@
 # Task ID: 15
 # Title: Implement Docling-Native Refactoring for Semantic Reader Backend
-# Status: pending
+# Status: done
 # Dependencies: None
 # Priority: high
 # Description: Refactor the semantic-reader-backend to use Docling directly rather than docling-core and docling-parse, following a more native approach and aligning with Docling's architecture as outlined in refactor_prd.txt.
@@ -143,376 +143,75 @@ File: rasterizers/pdf_rasterizer.py\n\nCurrent Purpose: Provides functionality t
 ### Details:
 Focus: Ensure the app layer of the project (FastAPI routes, services, etc.) properly integrates with the refactored internals.\n\nCurrent Purpose: The app layer (FastAPI routes, etc.) currently uses the old pipeline components.\n\nRetain? Yes - RETAIN with changes\n\nRefactoring Action: Update app/pipelines.py and any other app layer code to use the new conversion function. Replace import statements that reference now-removed components (e.g., ) with imports of the new converter (e.g., ). The structure of the app code should remain largely the same, with only the calls to the papermagedocling module changing.\n\nNote: This is mentioned in a note at the end of the file-by-file analysis in the PRD, not in the main table.\n\nReference: scripts/task-master/refactor_prd.txt - Section 1 'File-by-File Analysis and Refactoring Actions' (note after table)
 
-## 23. Integrate Document Models in DocumentProcessingService [pending]
+## 23. Optimize papermage_docling/converter.py to use DoclingParse v4 [done]
 ### Dependencies: None
-### Description: Extend DocumentProcessingService to use local DB models for persistence alongside external service API calls.
+### Description: **Current Role**: Unified Docling Converter – Central entry point for document conversion. Likely defines a convert_document function that uses Docling to process input (PDF, etc.) and produce the PaperMage-style JSON output. **Docling Alignment**: Aligned in Concept – This module encapsulates Docling's conversion pipeline, using Docling's high-level API (e.g. DocumentConverter.convert). It replaces prior custom pipelines by calling Docling directly. **Issues**: Possibly uses default Docling pipeline without specifying version (need to ensure the optimal parser version). Also must verify it faithfully maps Docling's output to the expected JSON format. **Cleanup/Refactor Instructions**: Use Docling's Official API: Ensure converter.py uses docling.document_converter.DocumentConverter with appropriate PDF pipeline (DoclingParse v4) for full features. Configure the converter to use DoclingParseV4 for best results including robust RTL text handling. Simplify mapping to output JSON. Before implementation, research the referenced documentation at https://github.com/docling-project/docling/blob/main/CHANGELOG.md for details on DoclingParse v4 and its capabilities.
 ### Details:
-1. Modify the DocumentProcessingService class to use SQLAlchemy models for document storage and retrieval
-2. When a document is processed, create/update a Document record in the database with metadata and processing status
-3. Update the BaseService CRUD methods to interact with the Document model
-4. Implement a mechanism to sync between external API service results and local database records
-5. Update methods like get_document(), list_documents() to fetch from the database first, then enrich with external service data if needed
-6. Add proper transaction handling for database operations
-7. Implement caching strategy to reduce redundant API calls
 
-**Implementation Guide:**
-1. First, review app/services/document_processing_service.py and app/services/base.py to understand current implementation
-2. Examine app/models/document.py to understand the SQLAlchemy models (Document, Page, etc.)
-3. Review app/dependencies/database.py for the database session dependency
-4. Modify DocumentProcessingService's __init__ method to accept both db_session and api_service:
-```python
-def __init__(self, db_session: Session, api_service: Optional[Any] = None):
-    super().__init__(db_session, Document)
-    self.api_service = api_service or get_api_service()
-```
-5. Update methods to store/retrieve from database:
-```python
-async def parse_document(self, file: UploadFile, options: Dict[str, Any] = None) -> Document:
-    # Create DB record first with status "processing"
-    db_document = Document(
-        filename=file.filename,
-        status="processing",
-        # Add other metadata fields
-    )
-    self.db_session.add(db_document)
-    self.db_session.commit()
-    
-    try:
-        # Call external API
-        api_result = await self.api_service.process_document(file, options)
-        
-        # Update DB record with results
-        db_document.status = "completed"
-        # Map API result fields to document model fields
-        db_document.metadata = api_result.get("metadata", {})
-        # Create related records (pages, sections, etc.)
-        
-        self.db_session.commit()
-        return db_document
-    except Exception as e:
-        db_document.status = "failed"
-        db_document.error_message = str(e)
-        self.db_session.commit()
-        raise
-```
 
-**Reference:**
-- According to refactor_prd_part_2.md, the DocumentProcessingService is marked as "Partial" because it currently acts as a wrapper around the external papermage_docling API service, but doesn't use the local database.
-- The updated instructions specifically call for integrating the DB models: "Extend DocumentProcessingService to use the local Document model for persistence. For example, when a document is processed, save or update a Document record in the database (perhaps storing metadata and status), using the BaseService CRUD methods."
-
-## 24. Refactor Document API Routes to Use Service Layer with Database [pending]
-### Dependencies: 23
-### Description: Update document-related API endpoints to utilize the DocumentProcessingService with local database storage.
-### Details:
-1. Modify document API routes to call DocumentProcessingService methods that handle database records
-2. Update POST /parse endpoint to create a Document entry in the database, then trigger external processing
-3. Update GET /documents/{id} to retrieve from the database, with optional enrichment from external service
-4. Modify GET /documents to list documents from the database instead of directly from the external service
-5. Ensure DELETE and other operations properly update database state
-
-**Implementation Guide:**
-1. Review app/api/v1/documents.py to understand the current API routes
-2. Update endpoints to use the enhanced DocumentProcessingService:
-```python
-@router.post("/parse", response_model=DocumentResponse)
-async def parse_document(
-    file: UploadFile = File(...),
-    options: Optional[DocumentParseOptions] = None,
-    document_service: DocumentProcessingService = Depends(get_document_service),
-):
-    # DocumentProcessingService now handles both DB operations and API calls
-    db_document = await document_service.parse_document(file, options.dict() if options else {})
-    return DocumentResponse.from_orm(db_document)
-
-@router.get("/documents/{document_id}", response_model=DocumentResponse)
-async def get_document(
-    document_id: str,
-    document_service: DocumentProcessingService = Depends(get_document_service),
-):
-    # Get from DB with fallback to API if needed
-    document = await document_service.get_document(document_id)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return DocumentResponse.from_orm(document)
-```
-3. Ensure proper error handling for database operations
-4. Add appropriate logging for database interactions
-
-**Reference:**
-- According to refactor_prd_part_2.md, the API routes in app/api/v1/documents.py are marked as "Partial" because they directly call the external service instead of using the database.
-- The updated instructions call for refactoring these routes to "use the service layer with DB" by having them call methods in DocumentProcessingService that handle DB records.
-- The PRD states: "Refactor these routes to call methods in DocumentProcessingService that handle DB records. For instance, POST /parse should create a Document entry (status 'processing') then trigger external processing, updating the record upon completion."
-
-## 25. Migrate Legacy API Endpoints to Versioned Structure [pending]
+## 24. Remove Legacy API Layer [done]
 ### Dependencies: None
-### Description: Move legacy endpoints (convert.py and recipe.py) into the versioned API structure.
+### Description: **Current Role**: A set of classes/functions that previously orchestrated the conversion pipeline and provided an interface (gateway) to the rest of the app. For example, gateway.py might have loaded PDF and invoked predictors, papermage.py assembled the final document structure, recipe_api.py handled pipeline 'recipes' (configurable workflows), and server.py possibly ran a standalone service for parsing. base.py provided shared base classes. **Docling Alignment**: Partially Aligned – After refactoring, these have been simplified to call the new unified converter. They no longer implement their own logic but delegate to Docling's conversion. Essentially they act as thin wrappers around converter.py now. **Issues**: Redundant abstraction after refactor. They introduce unnecessary indirection: the FastAPI app could call converter.py directly. Maintaining these adds complexity without adding value, since Docling handles the heavy lifting. Also, the 'recipe' concept is obsolete (Docling's pipeline is internally configurable). **Cleanup/Refactor Instructions**: Deprecate/Remove: Eliminate this extra layer. Remove or merge these modules into the main service flow. For example, replace calls to gateway.parse() or recipe_api with direct calls to convert_document in converter.py. Consolidate Logic: If any minor logic remains, move it into converter.py or the FastAPI route handler. Drop Recipe API. Remove Server.py. Before implementation, research relevant references to understand how the current code interacts with Docling's API.
 ### Details:
-1. Analyze the functionality of app/api/convert.py and app/api/recipe.py
-2. Determine appropriate location for this functionality within the versioned API structure (e.g., in app/api/v1/analysis.py, app/api/v1/documents.py, or create new modules)
-3. Move the endpoint handlers to the appropriate versioned modules while maintaining the same functionality
-4. Update dependencies and imports as needed
-5. Ensure consistent error handling across all endpoints
-6. Add appropriate route prefix and tags for the migrated endpoints
-7. Update any client code that may be calling these endpoints directly
 
-**Implementation Guide:**
-1. First, examine the current implementation of convert.py and recipe.py:
-```bash
-# Review the files to understand their functionality
-```
 
-2. For convert.py endpoints, integrate them into appropriate v1 modules:
-```python
-# If moving to app/api/v1/documents.py or creating app/api/v1/convert.py
-from fastapi import APIRouter, Depends, HTTPException
-# ... other imports
-
-router = APIRouter()
-
-@router.post("/convert", response_model=ConversionResponse)
-async def convert_document(
-    # ... parameters
-):
-    # Implementation from original endpoint
-    # Ensure it uses the service layer properly
-    pass
-```
-
-3. Update app/api/__init__.py to remove the legacy routers after migration
-4. Test the migrated endpoints for functionality and backward compatibility
-
-**Reference:**
-- According to refactor_prd_part_2.md, the "Legacy API Endpoints" (app/api/convert.py and app/api/recipe.py) are marked as "Not Done" because they remain outside the versioned API structure.
-- The PRD states: "According to the PRD, all endpoints should reside under a versioned module, so leaving these here is a misalignment."
-- The updated instructions recommend to "Migrate or Remove" these endpoints: "If these endpoints are still needed, they should be moved into the v1 package (e.g. integrated into analysis.py or documents.py as appropriate) so that all API routes are under /api/v1."
-
-## 26. Enhance Middleware Configuration in main.py [pending]
+## 25. Remove Input Adapters [done]
 ### Dependencies: None
-### Description: Configure global middleware for CORS, logging, and error handling in app/main.py.
+### Description: **Current Role**: Input Adapters (Removed) – Previously provided abstraction for input sources and format adaptation (e.g., loading PDFs via different methods). Likely used to prepare documents for the pipeline. **Docling Alignment**: Not Needed – Docling's InputFormat and internal loaders handle different formats natively. The Docling converter directly accepts PDFs, images, etc., so these adapter classes are superfluous. **Issues**: Outdated abstraction. Adds complexity and maintenance overhead. Possibly still present as files, but per refactor design they have been retired. Keeping them risks confusion and dead code. **Cleanup/Refactor Instructions**: Remove Entirely: Delete the api/adapters package. Confirm that no code references these (the new pipeline shouldn't). Use Docling Loaders: Rely on Docling's built-in mechanisms to handle input formats. For PDFs, Docling's PDF pipeline automatically parses content, making custom adapter code unnecessary. Search code for references: Before implementing, search the codebase to identify any remaining code that may reference these adapters and update accordingly.
 ### Details:
-1. Review current middleware configuration in app/main.py
-2. Ensure CORS middleware is properly configured using settings from config.py
-3. Add exception handlers for consistent error responses
-4. Configure logging middleware using settings.LOG_FORMAT and settings.LOG_LEVEL
-5. Add startup event for database initialization if needed
-6. Implement request ID tracking for better request tracing
-7. Add performance monitoring middleware if appropriate
 
-**Implementation Guide:**
-1. Review the current app/main.py implementation and app/core/config.py settings
-2. Update or add CORS middleware configuration:
-```python
-from fastapi.middleware.cors import CORSMiddleware
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
-
-3. Add exception handlers for consistent error responses:
-```python
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail}
-    )
-
-@app.exception_handler(Exception)
-async def general_exception_handler(request, exc):
-    # Log the exception
-    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error"}
-    )
-```
-
-4. Configure logging setup in a startup event:
-```python
-import logging
-
-@app.on_event("startup")
-async def configure_logging():
-    configure_logging(settings.LOG_LEVEL, settings.LOG_FORMAT)
-```
-
-5. Add database initialization in startup event if needed:
-```python
-from app.core.database import Base, engine
-
-@app.on_event("startup")
-async def initialize_database():
-    # Create database tables
-    Base.metadata.create_all(bind=engine)
-```
-
-**Reference:**
-- According to refactor_prd_part_2.md, the app/main.py file is marked as "Completed" but with a "Minor enhancement" needed for middleware configuration.
-- The PRD suggests: "Confirm that any global middleware (e.g. CORS, exception handlers) and startup events (for DB initialization) are configured here as intended by the PRD. If not (or if using default settings), consider adding them using values from config.py (e.g. allowed origins from settings.ALLOWED_ORIGINS)."
-
-## 27. Ensure Consistent Logging Configuration in Application [pending]
+## 26. Remove Custom ML/Heuristic Predictors [done]
 ### Dependencies: None
-### Description: Verify and configure consistent logging throughout the application using the centralized logging utility.
+### Description: **Current Role**: Custom ML/Heuristic Predictors (Removed) – Contained logic for detecting figures, tables, language direction, document structure, etc. These likely wrapped ML models or heuristics to enrich the parsed document (e.g., detecting table boundaries, marking sections, identifying RTL text). **Docling Alignment**: Superseded by Docling – Docling now provides these capabilities out-of-the-box. It includes table detection, figure extraction, language detection (RTL recognition), etc., as part of its pipeline. Docling's modular models cover what these predictors did, eliminating the need for custom code. **Issues**: Redundant and potentially inconsistent with Docling's results. Maintaining them could conflict or double-process (e.g., running a separate table detector when Docling already outputs tables). They also complicate the codebase. **Cleanup/Refactor Instructions**: Remove Predictor Modules: Delete the entire predictors directory and associated tests. Ensure that no references remain (the new converter should rely on Docling's internal predictors instead). Leverage Docling Models: Trust Docling's built-in models for figures/tables. For example, Docling will produce figure objects and table structures in the DoclingDocument. Before implementation, research how Docling's models work by reviewing the reference at https://arxiv.org/html/2408.09869v4 for details on Docling's capabilities.
 ### Details:
-1. Review app/utils/logging.py to understand the logging utilities provided
-2. Ensure app/main.py and other modules use this centralized logging configuration
-3. Configure logging.basicConfig using settings.LOG_LEVEL and settings.LOG_FORMAT
-4. Add appropriate logging statements throughout the application, especially for service layer operations
-5. Implement request ID tracking through logging context for better traceability
-6. Add structured logging for machine-readable logs if appropriate
 
-**Implementation Guide:**
-1. Review the current app/utils/logging.py implementation
-2. Update main.py to initialize logging configuration at startup:
-```python
-from app.utils.logging import configure_logging
 
-@app.on_event("startup")
-async def startup_event():
-    configure_logging(settings.LOG_LEVEL, settings.LOG_FORMAT)
-```
-
-3. Ensure utility functions in logging.py for creating loggers:
-```python
-# In app/utils/logging.py
-import logging
-from app.core.config import settings
-
-def configure_logging(log_level=None, log_format=None):
-    """Configure global logging settings."""
-    level = log_level or settings.LOG_LEVEL
-    format_str = log_format or settings.LOG_FORMAT
-    
-    logging.basicConfig(
-        level=getattr(logging, level),
-        format=format_str
-    )
-
-def get_logger(name):
-    """Get a logger with the specified name."""
-    return logging.getLogger(name)
-```
-
-4. Update service classes to use the centralized logger:
-```python
-# In service files
-from app.utils.logging import get_logger
-
-logger = get_logger(__name__)
-
-class SomeService:
-    def some_method(self):
-        logger.info("Processing operation")
-        # ...
-```
-
-**Reference:**
-- According to refactor_prd_part_2.md, the app/utils/logging.py component is marked as "Completed" but with an instruction to "Ensure that app/main.py or other modules use this logging configuration on startup."
-- The suggestion is to configure "logging.basicConfig with the format from settings" to ensure consistent logging throughout the application.
-
-## 28. Complete Database Integration Test Suite [pending]
-### Dependencies: 23, 24, 25
-### Description: Develop comprehensive tests for the integrated database functionality to ensure all components work together correctly.
+## 27. Remove Custom Pipeline Orchestration [done]
+### Dependencies: None
+### Description: **Current Role**: Custom Pipeline Orchestration (Removed) – Controls/choreographs processing pipeline steps, likely involved in directing document through various processing stages and monitoring status. Manages the flow of data between components and determines processing order. **Docling Alignment**: Not Needed – Docling has its own internal pipeline orchestration built-in via DoclingDocument flow. Calling the Docling API appropriately automatically handles all document processing pipeline steps. **Issues**: Redundant complexity. The custom orchestration likely duplicates what Docling does internally, making the code harder to maintain and potentially creating conflicts in how document processing is managed. **Cleanup/Refactor Instructions**: Remove Orchestration Logic: Delete any custom pipeline handling code. Rely on Docling's built-in document flow by ensuring proper API usage. For example, when a document is sent through Docling, it automatically performs all necessary steps like parsing, entity detection, etc. Search for references: Before implementing, research how Docling's pipeline flow works by consulting their documentation at https://www.docling.ai/docs/pipelines/ for details on the correct orchestration approach.
 ### Details:
-1. Create integration tests for DocumentProcessingService with database operations
-2. Test API endpoints with database integration
-3. Implement test fixtures for database setup and teardown
-4. Test synchronization between database and external service
-5. Ensure proper error handling and transaction management in tests
-6. Verify data consistency between API responses and database state
-7. Implement performance tests for database operations
 
-**Implementation Guide:**
-1. Create test fixtures for database testing:
-```python
-# In tests/conftest.py
-import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from app.core.database import Base
-from app.models.document import Document
-from app.services.document_processing_service import DocumentProcessingService
+## 28. Remove Docling Parser Wrappers [done]
+### Dependencies: None
+### Description: **Current Role**: Docling Parser Wrappers (Removed) – Custom wrappers around Docling parsers, likely written to standardize interfaces or add functionality specific to this project. May contain project-specific transformations or preprocessing logic. **Docling Alignment**: Not Needed – Direct integration with Docling's official API is cleaner and more maintainable. Using Docling's native interfaces ensures compatibility with future updates and reduces maintenance overhead. **Issues**: Unnecessary abstraction. Wrapper code requires maintenance and can get out of sync with upstream Docling changes. Any parser-specific tweaks should be handled directly in the converter module which is the single integration point. **Cleanup/Refactor Instructions**: Remove Parser Wrappers: Delete these wrappers and ensure the converter module directly uses Docling's parser interfaces. Search for references: Before removing, identify any dependent modules that might be using these wrappers by searching through import statements and function calls. Direct calls to Docling: Update the converter module to call Docling parsers directly with the appropriate configuration.
+### Details:
 
-@pytest.fixture
-def test_db():
-    """Create an in-memory SQLite database for testing."""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    TestingSessionLocal = sessionmaker(bind=engine)
-    db = TestingSessionLocal()
-    
-    try:
-        yield db
-    finally:
-        db.close()
-        
-@pytest.fixture
-def document_service(test_db, mock_api_service):
-    """Create a DocumentProcessingService with test dependencies."""
-    return DocumentProcessingService(test_db, mock_api_service)
-```
 
-2. Write tests for database operations in DocumentProcessingService:
-```python
-# In tests/services/test_document_processing_service.py
-import pytest
-from app.models.document import Document
+## 29. Remove PDF Rasterizer [done]
+### Dependencies: None
+### Description: **Current Role**: PDF Page Rasterization (Removed) – Provided functionality to render PDF pages to images (possibly used for figure detection or to include page thumbnails). **Docling Alignment**: Provided by Docling – Docling can obtain page images if needed (e.g., via get_page_image() in its page backend). If the pipeline requires images (for figure analysis or output), Docling's backend handles it. **Issues**: Duplicative of Docling's capabilities. Maintaining a separate rasterizer could cause inconsistencies (e.g., different DPI or image format). Likely removed in the refactor. **Cleanup/Refactor Instructions**: Remove: Verify this file is deleted. Use Docling's image extraction for any needed page rendering. Docling's parse pipeline will call internal rasterization when required (for example, its figure detection might rasterize a region). If the application needs an explicit page image, use DoclingDocument.pages[i].image or similar API from Docling rather than a custom class.
+### Details:
 
-def test_create_document_in_db(document_service, test_db):
-    """Test creating a document record in the database."""
-    # Setup test data
-    doc_data = {
-        "filename": "test.pdf",
-        "status": "completed",
-        "metadata": {"language": "en"}
-    }
-    
-    # Create document
-    document = document_service.create(**doc_data)
-    
-    # Verify document was created in DB
-    assert document.id is not None
-    assert document.filename == "test.pdf"
-    
-    # Verify it can be retrieved
-    retrieved = document_service.get(document.id)
-    assert retrieved is not None
-    assert retrieved.id == document.id
-```
 
-3. Create API tests with database integration:
-```python
-# In tests/api/test_document_api.py
-from fastapi.testclient import TestClient
-from app.main import app
+## 30. Remove Recipe.py [done]
+### Dependencies: None
+### Description: **Current Role**: Pipeline Recipe Definition – Probably defined a structure (a 'Recipe') for grouping predictors and pipeline steps into a named configuration. For example, a recipe might have listed which predictors to run for a given conversion mode. **Docling Alignment**: Not Applicable – Docling's unified pipeline makes this unnecessary. Docling itself decides which modules to apply for a PDF (text extraction, layout analysis, etc.), and can be configured via plugin options. A separate recipe abstraction is overkill now. **Issues**: Adds an extra layer that isn't used after refactoring. If still in the code, it's confusing and unused. **Cleanup/Refactor Instructions**: Remove: Unless actively used, eliminate recipe.py. The FastAPI endpoints no longer need to select recipes – there is essentially one 'recipe': Docling's conversion. If in the future different output detail levels are needed, handle that via function parameters or Docling's pipeline options rather than resurrecting this abstraction.
+### Details:
 
-client = TestClient(app)
 
-def test_parse_document_endpoint_with_db_integration(monkeypatch, test_db):
-    """Test the document parsing endpoint with database integration."""
-    # Setup mocks and test data
-    # ...
-    
-    # Make API request
-    response = client.post("/api/v1/documents/parse", ...)
-    
-    # Verify response
-    assert response.status_code == 200
-    
-    # Verify database state
-    document = test_db.query(Document).first()
-    assert document is not None
-    assert document.status == "completed"
-```
+## 31. Evaluate Storage Module [done]
+### Dependencies: None
+### Description: **Current Role**: File Storage Layer – A storage abstraction layer that provides file access from different sources (local, S3, etc.). **Docling Alignment**: Unclear – Not clear if Docling offers a similar abstraction, or if this component is still necessary. **Issues**: Potential redundancy, depending on Docling's capabilities. If Docling manages its own storage internally, this layer may be unnecessary. **Cleanup/Refactor Instructions**: Evaluate: Determine if Docling handles file storage internally. If so, remove this layer. If not, keep it but ensure it integrates cleanly with Docling's API.
+### Details:
 
-**Reference:**
-- The components marked as "Partial" in refactor_prd_part_2.md (DocumentProcessingService and document API routes) need to be tested after integration with the database.
-- This subtask ensures comprehensive testing of the database integration to verify all components work together correctly.
-- This follows the clean architecture principles mentioned in the PRD, ensuring proper separation of concerns between API, service layer, and database.
+
+## 32. Use Docling's Data Model [done]
+### Dependencies: None
+### Description: **Current Role**: Document Model – Defines the Document data model for handling parsed PDF content. **Docling Alignment**: Conflicting – Docling has its own internal data model that should be used directly. **Issues**: Redundant abstraction that diverges from Docling's data model, creating translation overhead. **Cleanup/Refactor Instructions**: Remove/Replace: Replace with direct use of Docling's native data models. Update any code that previously used this model to work directly with Docling's Document objects.
+### Details:
+
+
+## 33. Inline or Remove api_service.py [done]
+### Dependencies: None
+### Description: **Current Role**: API Service Layer – A thin wrapper around the API that provides a cleaner interface. **Docling Alignment**: Conflicting – Adds a layer of indirection when we should be using Docling's API directly. **Issues**: Redundant abstraction that potentially hides Docling capabilities or adds maintenance overhead when Docling changes. **Cleanup/Refactor Instructions**: Inline/Remove: Either remove this layer entirely and call Docling directly, or inline critical functionality into the core converter.
+### Details:
+
+
+## 34. Update or Isolate PDF Visualizer [done]
+### Dependencies: None
+### Description: **Current Role**: Contains PDF visualization code for document pages. **Docling Alignment**: Unclear – Might be redundant with Docling's built-in visualization tools, but also might provide custom features needed by the application. **Issues**: Potentially duplicating functionality that Docling already provides. **Cleanup/Refactor Instructions**: Either update to use Docling's visualization capabilities or isolate as a standalone module that consumes Docling objects.
+### Details:
+
 

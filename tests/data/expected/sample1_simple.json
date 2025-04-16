@@ -1,0 +1,139 @@
+{
+  "pages": [
+    {
+      "width": 612,
+      "height": 792,
+      "number": 1,
+      "blocks": [
+        {
+          "x0": 50.0,
+          "y0": 50.0,
+          "x1": 160.73189886652187,
+          "y1": 73.25316264963237,
+          "text": "This is text block 1. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 306.0,
+          "y0": 50.0,
+          "x1": 505.71028784396566,
+          "y1": 75.42901809122662,
+          "text": "This is text block 2. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 50.0,
+          "y0": 280.66666666666663,
+          "x1": 235.4274947553834,
+          "y1": 310.04391022933316,
+          "text": "This is text block 3. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 306.0,
+          "y0": 280.66666666666663,
+          "x1": 525.9799448562479,
+          "y1": 307.3628004353918,
+          "text": "This is text block 4. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 50.0,
+          "y0": 511.3333333333333,
+          "x1": 245.8114096523706,
+          "y1": 537.8436719290668,
+          "text": "This is text block 5. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 306.0,
+          "y0": 511.3333333333333,
+          "x1": 468.12300751331315,
+          "y1": 537.6805630603264,
+          "text": "This is text block 6. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 283.721924347004,
+          "y0": 668.0043026751649,
+          "x1": 551.8056259904845,
+          "y1": 706.2467333570202,
+          "text": "This is text block 7. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 409.21433709328915,
+          "y0": 416.95186159587047,
+          "x1": 561.79107247828,
+          "y1": 444.65845757536283,
+          "text": "This is text block 8. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 303.71281755012564,
+          "y0": 98.14501141981752,
+          "x1": 506.44964465950255,
+          "y1": 137.713262078446,
+          "text": "This is text block 9. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 368.97968714169764,
+          "y0": 189.62929811882384,
+          "x1": 488.4091177802808,
+          "y1": 215.3087531246962,
+          "text": "This is text block 10. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 213.36027475277226,
+          "y0": 496.69918540931553,
+          "x1": 472.42997431867514,
+          "y1": 536.314548947192,
+          "text": "This is text block 11. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        }
+      ],
+      "tables": [],
+      "figures": []
+    }
+  ],
+  "metadata": {
+    "title": "Sample1 Simple",
+    "author": "Test Author",
+    "creator": "PDF Test Generator",
+    "producer": "Python Test Script",
+    "subject": "Test Document",
+    "keywords": [
+      "test",
+      "pdf",
+      "synthetic"
+    ],
+    "created": "2023-06-15T12:00:00Z",
+    "modified": "2023-06-15T12:00:00Z",
+    "pages": 1
+  },
+  "version": "1.0.0"
+}

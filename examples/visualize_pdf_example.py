@@ -88,9 +88,11 @@ def main():
         output_dir=output_dir
     )
     
-    # Set parser options
+    # Set Docling options
     parser_kwargs = {
-        "detect_rtl": args.detect_rtl
+        "detect_rtl": args.detect_rtl,
+        "detect_tables": True,
+        "detect_figures": True,
     }
     
     # Visualize the PDF
@@ -101,6 +103,8 @@ def main():
     print(f"  Interactive: {args.interactive}")
     print(f"  RTL detection: {args.detect_rtl}")
     print(f"  Output directory: {output_dir}")
+    print("")
+    print("Using Docling's DocumentConverter for parsing...")
     
     visualizer.visualize_pdf(
         pdf_path=args.input_pdf,

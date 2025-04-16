@@ -2,8 +2,8 @@
 PDF document visualization tools for papermage_docling.
 
 This module provides functionality to visualize PDF documents processed by
-the DoclingPdfParser, rendering pages with visualization of various text units
-(characters, words, lines) and their bounding boxes.
+Docling, rendering pages with visualization of various text units
+and their bounding boxes.
 """
 
 import argparse
@@ -14,10 +14,13 @@ from typing import List, Optional, Union, Literal
 
 # Import Docling document structures
 try:
-    from docling_core.types.doc.page import SegmentedPdfPage, TextCellUnit
-    from docling_parse.pdf_parser import PdfDocument
+    from docling.document_converter import DocumentConverter
+    from docling.datamodel.document import DoclingDocument 
+    from docling.backend.docling_parse_v4_backend import SegmentedPdfPage, TextCellUnit
+    DOCLING_AVAILABLE = True
 except ImportError:
     logging.warning("Docling dependencies not found. Visualization functionality will be limited.")
+    DOCLING_AVAILABLE = False
     # Define stub classes for type hints
     class SegmentedPdfPage:
         pass
@@ -27,11 +30,8 @@ except ImportError:
         WORD = "word"
         LINE = "line"
     
-    class PdfDocument:
+    class DoclingDocument:
         pass
-
-# Import DoclingPdfParser
-from papermage_docling.parsers.docling_pdf_parser import DoclingPdfParser
 
 # Configure logging
 logging.basicConfig(
@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 class PdfVisualizer:
     """
-    Visualize PDF documents processed by DoclingPdfParser.
+    Visualize PDF documents processed by Docling.
     
     This class provides methods to visualize PDF documents at different granularity
     levels (character, word, line), with options to highlight text and bounding boxes.
@@ -94,19 +94,46 @@ class PdfVisualizer:
             pdf_path: Path to the PDF file
             page_num: Page number to visualize (-1 for all pages)
             category: Text unit category to visualize ('all', 'char', 'word', 'line')
-            parser_kwargs: Additional keyword arguments for DoclingPdfParser
+            parser_kwargs: Additional keyword arguments for Docling configuration
             
         Returns:
             None
         """
+        if not DOCLING_AVAILABLE:
+            logger.error("Docling is not available. Cannot visualize PDF.")
+            return
+            
         logger.info(f"Visualizing PDF: {pdf_path} (page: {page_num}, category: {category})")
         
-        # Initialize parser
+        # Initialize Docling converter with parser_kwargs
         parser_kwargs = parser_kwargs or {}
-        parser = DoclingPdfParser(loglevel=self.log_level, **parser_kwargs)
+        
+        # Configure converter arguments
+        converter_args = {
+            "tables": parser_kwargs.get("detect_tables", True),
+            "figures": parser_kwargs.get("detect_figures", True),
+            "metadata": True,
+            "ocr": parser_kwargs.get("enable_ocr", False),
+            "parser": "doclingparse_v4",  # Use DoclingParse v4
+            "rtl_enabled": parser_kwargs.get("detect_rtl", True),
+        }
+        
+        # Add OCR language if provided
+        if "ocr_language" in parser_kwargs:
+            converter_args["ocr_language"] = parser_kwargs["ocr_language"]
+        
+        # Create converter
+        converter = DocumentConverter(**converter_args)
         
         # Load PDF document
-        pdf_doc: PdfDocument = parser.parse(pdf_path, output_format='docling')
+        result = converter.convert(str(pdf_path))
+        
+        # Get the DoclingDocument
+        docling_doc = result.document
+        
+        # Get the PDF document from Docling's result for visualization
+        # This uses internal document storage for visualization purposes
+        pdf_doc = docling_doc._pdf_document
         
         # Determine pages to visualize
         page_nos = [page_num]

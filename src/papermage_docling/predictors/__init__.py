@@ -1,98 +1,26 @@
 """
-Predictors module for document structure and language prediction.
+DEPRECATED Predictors module for document structure and language prediction.
 
-This module provides utilities for predicting document structure, 
-language detection, and RTL text processing.
-"""
+This module provides compatibility stubs for the predictor functionality.
+Docling now handles these features internally through its DocumentConverter API.
 
-# Export RTL utilities
-from papermage_docling.predictors.rtl_utils import (
-    is_rtl,
-    is_rtl_char,
-    get_text_direction,
-    reorder_text,
-    reorder_words,
-    process_rtl_paragraph,
-    process_mixed_text,
-    normalize_rtl_text,
-    detect_and_mark_rtl,
-)
-
-# Export language prediction
-from papermage_docling.predictors.language_predictor import (
-    LanguagePredictor,
-    is_rtl_language,
-    get_language_name,
-    detect_language,
-    get_language_predictor,
-)
-
-# Export structure prediction
-from papermage_docling.predictors.structure_predictor import (
-    StructurePredictor,
-    get_structure_predictor,
-)
-
-# Export figure prediction
-from papermage_docling.predictors.figure_predictor import (
-    FigurePredictor,
-    FigureItem,
-    get_figure_predictor,
-)
-
-# Export table prediction
-from papermage_docling.predictors.table_predictor import (
-    TablePredictor,
-    TableItem,
-    get_table_predictor,
-)
-
-__all__ = [
-    # RTL utilities
-    'is_rtl',
-    'is_rtl_char',
-    'get_text_direction',
-    'reorder_text',
-    'reorder_words',
-    'process_rtl_paragraph',
-    'process_mixed_text',
-    'normalize_rtl_text',
-    'detect_and_mark_rtl',
-    
-    # Language prediction
-    'LanguagePredictor',
-    'is_rtl_language',
-    'get_language_name',
-    'detect_language',
-    'get_language_predictor',
-    
-    # Structure prediction
-    'StructurePredictor',
-    'get_structure_predictor',
-    
-    # Figure prediction
-    'FigurePredictor',
-    'FigureItem',
-    'get_figure_predictor',
-    
-    # Table prediction
-    'TablePredictor',
-    'TableItem',
-    'get_table_predictor',
-]
-
-"""
-Legacy predictors compatibility layer.
-
-This module provides stubs and compatibility imports for code that might
-still reference the old predictor classes, which have been removed in favor
-of direct Docling integration.
-
-DEPRECATED: These are placeholder compatibility classes that will be removed in a future version.
+This module will be removed in a future version.
 """
 
 import warnings
-from typing import Any, Dict, List, Optional
+import importlib.util
+from typing import Any, Dict, List, Optional, Union
+
+# Check if docling is available
+docling_available = importlib.util.find_spec("docling") is not None
+
+# Display a module-level deprecation warning
+warnings.warn(
+    "The papermage_docling.predictors module is deprecated and will be removed in a future version. "
+    "Use Docling's native functionality via DocumentConverter instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 # Base predictor class for compatibility
 class BasePredictor:
@@ -100,6 +28,7 @@ class BasePredictor:
     Legacy compatibility class for base predictor.
     
     DEPRECATED: This class is maintained only for backward compatibility.
+    Docling now handles these features internally.
     """
     def __init__(self, *args, **kwargs):
         warnings.warn(
@@ -159,7 +88,211 @@ class StructurePredictor(BasePredictor):
     """
     pass
 
-# RTL utils compatibility functions
+# For compatibility with code that imports the factories
+def get_figure_predictor(*args, **kwargs):
+    """Get a figure predictor instance. Deprecated stub."""
+    warnings.warn(
+        "get_figure_predictor is deprecated. Docling now handles figure detection internally.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return FigurePredictor()
+
+def get_table_predictor(*args, **kwargs):
+    """Get a table predictor instance. Deprecated stub."""
+    warnings.warn(
+        "get_table_predictor is deprecated. Docling now handles table detection internally.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return TablePredictor()
+
+def get_structure_predictor(*args, **kwargs):
+    """Get a structure predictor instance. Deprecated stub."""
+    warnings.warn(
+        "get_structure_predictor is deprecated. Docling now handles structure detection internally.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return StructurePredictor()
+
+def get_language_predictor(*args, **kwargs):
+    """Get a language predictor instance. Deprecated stub."""
+    warnings.warn(
+        "get_language_predictor is deprecated. Docling now handles language detection internally.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return LanguagePredictor()
+
+# RTL utility functions (these are now directly using Docling's capabilities when available)
+def is_rtl(text: str) -> bool:
+    """
+    Check if text is primarily right-to-left.
+    
+    Args:
+        text: The text to check
+        
+    Returns:
+        True if text is primarily RTL, False otherwise
+    """
+    # Use docling's RTL detection if available
+    if docling_available:
+        try:
+            from docling.utils.rtl import is_rtl_text
+            return is_rtl_text(text)
+        except ImportError:
+            pass
+    
+    # Fallback RTL detection for backward compatibility
+    if not text:
+        return False
+    
+    rtl_chars = 0
+    for char in text:
+        if is_rtl_char(char):
+            rtl_chars += 1
+    
+    return rtl_chars > len(text) / 2
+
+def is_rtl_char(char: str) -> bool:
+    """
+    Check if a character is from an RTL script.
+    
+    Args:
+        char: A single character to check
+        
+    Returns:
+        True if the character is from an RTL script, False otherwise
+    """
+    # Hebrew: 0x0590-0x05FF
+    # Arabic: 0x0600-0x06FF
+    # Extended Arabic: 0x0750-0x077F
+    # Various Arabic presentations: 0xFB50-0xFDFF, 0xFE70-0xFEFF
+    code = ord(char)
+    return (
+        (0x0590 <= code <= 0x05FF) or  # Hebrew
+        (0x0600 <= code <= 0x06FF) or  # Arabic
+        (0x0750 <= code <= 0x077F) or  # Extended Arabic
+        (0xFB50 <= code <= 0xFDFF) or  # Arabic presentation forms A
+        (0xFE70 <= code <= 0xFEFF)      # Arabic presentation forms B
+    )
+
+def get_text_direction(text: str) -> str:
+    """
+    Get the primary text direction.
+    
+    Args:
+        text: The text to analyze
+        
+    Returns:
+        'rtl' if the text is primarily right-to-left, 'ltr' otherwise
+    """
+    return "rtl" if is_rtl(text) else "ltr"
+
+def reorder_text(text: str) -> str:
+    """
+    Reorder RTL text for proper display.
+    
+    Args:
+        text: The text to reorder
+        
+    Returns:
+        Reordered text
+    """
+    warnings.warn(
+        "reorder_text is deprecated. Docling now handles RTL text internally.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return text
+
+def reorder_words(words: List[str]) -> List[str]:
+    """
+    Reorder a list of words for RTL text.
+    
+    Args:
+        words: List of words to reorder
+        
+    Returns:
+        Reordered list of words
+    """
+    warnings.warn(
+        "reorder_words is deprecated. Docling now handles RTL text internally.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return words
+
+def process_rtl_paragraph(text: str) -> str:
+    """
+    Process an RTL paragraph for proper display.
+    
+    Args:
+        text: The RTL paragraph text
+        
+    Returns:
+        Processed text
+    """
+    warnings.warn(
+        "process_rtl_paragraph is deprecated. Docling now handles RTL text internally.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return text
+
+def process_mixed_text(text: str) -> str:
+    """
+    Process text with mixed RTL and LTR content.
+    
+    Args:
+        text: The mixed text
+        
+    Returns:
+        Processed text
+    """
+    warnings.warn(
+        "process_mixed_text is deprecated. Docling now handles mixed RTL/LTR text internally.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return text
+
+def normalize_rtl_text(text: str) -> str:
+    """
+    Normalize RTL text (e.g., handle ligatures, normalize characters).
+    
+    Args:
+        text: The RTL text to normalize
+        
+    Returns:
+        Normalized text
+    """
+    warnings.warn(
+        "normalize_rtl_text is deprecated. Docling now handles RTL text normalization internally.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return text
+
+def detect_and_mark_rtl(document: Any) -> Any:
+    """
+    Detect and mark RTL sections in a document.
+    
+    Args:
+        document: The document to process
+        
+    Returns:
+        Processed document
+    """
+    warnings.warn(
+        "detect_and_mark_rtl is deprecated. Docling now handles RTL detection internally.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return document
+
+# For compatibility with code that imports these from predictors
 def is_rtl_language(language_code: str) -> bool:
     """
     Check if a language is right-to-left.
@@ -172,3 +305,93 @@ def is_rtl_language(language_code: str) -> bool:
     """
     rtl_languages = {'ar', 'he', 'fa', 'ur', 'dv', 'ha', 'khw', 'ks', 'ku', 'ps', 'sd', 'ug', 'yi'}
     return language_code.lower() in rtl_languages
+
+def get_language_name(language_code: str) -> str:
+    """
+    Get the name of a language from its code.
+    
+    Args:
+        language_code: ISO language code
+        
+    Returns:
+        Language name
+    """
+    language_names = {
+        'en': 'English',
+        'fr': 'French',
+        'de': 'German',
+        'es': 'Spanish',
+        'it': 'Italian',
+        'pt': 'Portuguese',
+        'nl': 'Dutch',
+        'ru': 'Russian',
+        'ar': 'Arabic',
+        'he': 'Hebrew',
+        'fa': 'Persian',
+        'zh': 'Chinese',
+        'ja': 'Japanese',
+        'ko': 'Korean',
+    }
+    return language_names.get(language_code.lower(), f"Unknown ({language_code})")
+
+def detect_language(text: str) -> str:
+    """
+    Detect the language of text.
+    
+    Args:
+        text: The text to analyze
+        
+    Returns:
+        ISO language code
+    """
+    warnings.warn(
+        "detect_language is deprecated. Use Docling's native language detection via DocumentConverter.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    # Default to English for backward compatibility
+    return "en"
+
+# Export names for backward compatibility
+__all__ = [
+    # RTL utilities
+    'is_rtl',
+    'is_rtl_char',
+    'get_text_direction',
+    'reorder_text',
+    'reorder_words',
+    'process_rtl_paragraph',
+    'process_mixed_text',
+    'normalize_rtl_text',
+    'detect_and_mark_rtl',
+    
+    # Language prediction
+    'LanguagePredictor',
+    'is_rtl_language',
+    'get_language_name',
+    'detect_language',
+    'get_language_predictor',
+    
+    # Structure prediction
+    'StructurePredictor',
+    'get_structure_predictor',
+    
+    # Figure prediction
+    'FigurePredictor',
+    'FigureItem',
+    'get_figure_predictor',
+    
+    # Table prediction
+    'TablePredictor',
+    'TableItem',
+    'get_table_predictor',
+]
+
+# Compatibility items
+class FigureItem:
+    """Compatibility stub for FigureItem."""
+    pass
+
+class TableItem:
+    """Compatibility stub for TableItem."""
+    pass

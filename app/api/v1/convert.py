@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks, HTTPException, Depends, status
 from fastapi.responses import JSONResponse
 
-from app.models import (
+from app.schemas.convert import (
     ConvertURLRequest, ConvertResponse, JobStatusResponse,
     ConversionOptions, DocumentResult
 )

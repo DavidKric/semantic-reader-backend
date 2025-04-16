@@ -11,7 +11,7 @@ import logging
 from typing import Any, Dict, List, Optional, Union, BinaryIO
 from pathlib import Path
 
-from docling.documentconverter import DocumentConverter
+from docling.document_converter import DocumentConverter
 
 # Import the Pydantic models for output format
 from papermage_docling.converters.document import (
@@ -27,15 +27,13 @@ RTL_LANGUAGES = {'ar', 'he', 'fa', 'ur', 'dv', 'ha', 'khw', 'ks', 'ku', 'ps', 's
 def convert_document(
     source: Union[str, Path, BinaryIO, bytes],
     options: Optional[Dict[str, Any]] = None,
-    use_legacy: bool = False
 ) -> Dict[str, Any]:
     """
-    Convert a document to PaperMage JSON format using Docling.
+    Convert a document to PaperMage JSON format using Docling with DoclingParse v4.
     
     Args:
         source: Path to file, file-like object, or bytes of the document
         options: Configuration options for conversion
-        use_legacy: If True, use the legacy pipeline (for testing/comparison)
     
     Returns:
         A dictionary representing the document in PaperMage JSON format
@@ -43,12 +41,6 @@ def convert_document(
     Raises:
         ValueError: If the source cannot be read or the conversion fails
     """
-    if use_legacy:
-        # For testing, we can switch to the legacy pipeline
-        # This will be removed after the refactoring is complete
-        from papermage_docling.api.gateway import process_document
-        return process_document(source, options)
-    
     # Default options
     if options is None:
         options = {}
@@ -60,6 +52,8 @@ def convert_document(
             "figures": options.get("detect_figures", True),
             "metadata": True,
             "ocr": options.get("enable_ocr", False),
+            "parser": "doclingparse_v4",  # Explicitly use DoclingParse v4
+            "rtl_enabled": options.get("detect_rtl", True),  # Enable RTL detection and processing
         }
         
         # Add OCR language if provided
@@ -67,10 +61,11 @@ def convert_document(
             converter_args["ocr_language"] = options["ocr_language"]
 
         # Create Docling DocumentConverter
+        logger.info(f"Creating Docling DocumentConverter with DoclingParse v4")
         converter = DocumentConverter(**converter_args)
         
         # Convert the document
-        logger.info(f"Converting document with Docling (tables={converter_args['tables']}, figures={converter_args['figures']})")
+        logger.info(f"Converting document with Docling v4 (tables={converter_args['tables']}, figures={converter_args['figures']}, rtl={converter_args['rtl_enabled']})")
         
         # Handle different source types
         if isinstance(source, (str, Path)):

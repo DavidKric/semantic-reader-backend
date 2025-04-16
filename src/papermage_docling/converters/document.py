@@ -12,17 +12,43 @@ class Box(BaseModel):
 
 
 class Span(BaseModel):
-    """Represents a span of text in the document."""
-    start: int
-    end: int
+    """Represents a span of text with bounding box."""
+    text: str = ""
+    box: Optional[Box] = None
+    start: int = 0
+    end: int = 0
 
 
 class Entity(BaseModel):
     """Represents a document entity with spans and boxes."""
-    spans: List[Span]
-    boxes: List[Box]
+    id: str = ""
+    box: Optional[Box] = None
+    spans: List[Span] = Field(default_factory=list)
+    boxes: List[Box] = Field(default_factory=list)
     text: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class TableEntity(Entity):
+    """Represents a table in the document."""
+    rows: List[List[str]] = Field(default_factory=list)
+    columns: List[str] = Field(default_factory=list)
+    caption: str = ""
+
+
+class FigureEntity(Entity):
+    """Represents a figure in the document."""
+    caption: str = ""
+
+
+class Page(BaseModel):
+    """Represents a page in the document."""
+    number: int
+    width: float = 0
+    height: float = 0
+    rotation: float = 0
+    words: List[Span] = Field(default_factory=list)
+    entities: List[Entity] = Field(default_factory=list)
 
 
 class Document(BaseModel):
@@ -30,11 +56,14 @@ class Document(BaseModel):
     A document representation based on PaperMage's document structure.
     
     This is used as a converter to translate between Docling's native data structures
-    and PaperMage's expected format.
+    and PaperMage's expected format. Compatible with DoclingParse v4.
     """
-    symbols: str = ""
+    id: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    pages: List[Page] = Field(default_factory=list)
+    full_text: str = ""
     entities: Dict[str, List[Entity]] = Field(default_factory=dict)
+    symbols: str = ""  # Backward compatibility field
     
     def to_json(self) -> Dict[str, Any]:
         """Convert the document to a JSON-serializable dictionary."""

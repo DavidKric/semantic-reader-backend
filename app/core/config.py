@@ -7,9 +7,13 @@ as a single importable settings object. Using pydantic_settings for type validat
 
 import os
 from typing import List, Dict, Any, Optional
+from pathlib import Path
 
 from pydantic import Field, validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Define base directory
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -64,6 +68,9 @@ class Settings(BaseSettings):
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
     DB_ECHO: bool = False
+    
+    # Add setting for HTML report output directory
+    REPORT_OUTPUT_DIR: str = os.path.join(BASE_DIR, "reports")
     
     @property
     def ALLOWED_ORIGINS(self) -> List[str]:

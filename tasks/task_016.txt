@@ -1,0 +1,97 @@
+# Task ID: 16
+# Title: Implement Comprehensive Testing Framework for Semantic-Reader-Backend
+# Status: done
+# Dependencies: None
+# Priority: high
+# Description: Create a comprehensive test suite for the Semantic-Reader-Backend with Docling integration, aiming for 100% test coverage across all components.
+# Details:
+
+
+# Test Strategy:
+
+
+# Subtasks:
+## 1. Set up test directory structure and organization [done]
+### Dependencies: None
+### Description: Create the modular test directory structure following the testing plan, including organization by feature area and test directories for layout, OCR, tables, figures, converter, and API tests.
+### Details:
+
+
+## 2. Create sample PDF test files and expected outputs [done]
+### Dependencies: None
+### Description: Prepare a collection of sample PDF files with varying characteristics for testing, including simple text PDFs, multi-column documents, scanned PDFs, documents with tables and figures, and documents with complex layouts.
+### Details:
+
+
+## 3. Implement layout and reading order tests [done]
+### Dependencies: None
+### Description: Create tests that verify correct reading order, line detection, and layout parsing using sample documents with complex layouts like multi-column texts.
+### Details:
+
+
+## 4. Implement OCR text extraction tests [done]
+### Dependencies: None
+### Description: Create tests for OCR text extraction functionality using scanned documents, validating that text is correctly extracted, positioned, and structured.
+### Details:
+
+
+## 5. Implement table extraction and structure tests [done]
+### Dependencies: None
+### Description: Create tests that verify table detection, structure analysis, and content extraction using documents containing various table types and formats.
+### Details:
+
+
+## 6. Implement figure detection and extraction tests [done]
+### Dependencies: None
+### Description: Create tests that verify figure detection, caption association, and image extraction using documents with various types of figures, charts, and images.
+### Details:
+
+
+## 7. Implement converter module and JSON schema tests [done]
+### Dependencies: None
+### Description: Develop tests for the converter module that transforms Docling output to the expected JSON format, including schema validation and verification of all required fields and structures.
+### Details:
+
+
+## 8. Implement error handling and edge case tests [done]
+### Dependencies: None
+### Description: Create tests for error handling and edge cases, including corrupted PDFs, malformed documents, empty pages, and other problematic inputs to ensure robustness.
+### Details:
+
+
+## 9. Implement API route tests [done]
+### Dependencies: None
+### Description: Create tests for the FastAPI endpoints to ensure they correctly handle document uploads, error responses, and integration with the document processing pipeline.
+### Details:
+
+
+## 10. Implement HTML report generation and visualization [done]
+### Dependencies: None
+### Description: Create the reporting infrastructure to generate HTML test reports with embedded visualization artifacts for visual inspection of text layout, tables, and figures.
+### Details:
+
+
+## 11. Develop CI/CD integration for test pipeline [done]
+### Dependencies: None
+### Description: Integrate the testing framework into the CI/CD pipeline to automatically run tests on pull requests and deployments, including HTML report generation and quality checks.
+### Details:
+
+
+## 12. Setup CI/CD integration for automated testing [done]
+### Dependencies: None
+### Description: Implement GitHub Actions workflows to automatically run tests on pull requests and main branch commits. Include test badge in README and generate HTML test reports.
+### Details:
+
+
+## 13. Implement documentation and CI integration [done]
+### Dependencies: None
+### Description: Create comprehensive test documentation and integrate testing into CI pipeline, ensuring tests run automatically on PRs and deployments.
+### Details:
+
+
+## 14. Implement end-to-end integration tests [done]
+### Dependencies: None
+### Description: Create comprehensive integration tests that verify the complete document processing pipeline from input to output, including API interaction, document processing, and storage/retrieval functionality.
+### Details:
+
+

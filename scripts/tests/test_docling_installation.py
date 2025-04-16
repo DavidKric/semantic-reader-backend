@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 try:
-    from docling.documentconverter import DocumentConverter
+    from docling.document_converter import DocumentConverter
     print("✅ Successfully imported Docling")
 except ImportError as e:
     print(f"❌ Failed to import Docling: {e}")

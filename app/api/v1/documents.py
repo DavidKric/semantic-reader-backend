@@ -11,8 +11,9 @@ import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Query, status
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Query, status, Path
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.dependencies.services import get_document_service
@@ -24,15 +25,7 @@ from app.schemas.documents import (
     ProcessDocumentRequest,
     DocumentProcessingOptions
 )
-
-# Import papermage_docling API service
-try:
-    from papermage_docling.api_service import get_api_service
-    DOCLING_AVAILABLE = True
-except ImportError:
-    logger = logging.getLogger(__name__)
-    logger.warning("papermage_docling not available. Document processing features will be disabled.")
-    DOCLING_AVAILABLE = False
+from app.api.deps import get_db
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -362,4 +355,225 @@ async def clear_document_cache(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to clear cache: {str(e)}"
-        ) 
+        )
+
+
+@router.post("/documents/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    options: Optional[Dict[str, Any]] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Upload a document for processing.
+    
+    Args:
+        file: The document file to upload
+        options: Processing options
+        db: Database session
+        
+    Returns:
+        Processed document information
+    """
+    if options is None:
+        options = {}
+    
+    # Create document processing service
+    document_service = DocumentProcessingService(db)
+    
+    try:
+        # Process the document
+        result = await document_service.parse_document(
+            document=file,
+            file_type=file.filename.split(".")[-1].lower() if "." in file.filename else "pdf",
+            options=options
+        )
+        
+        return {
+            "status": "success",
+            "document_id": result.id,
+            "filename": result.filename,
+            "processing_status": result.processing_status
+        }
+    except Exception as e:
+        logger.error(f"Error processing document: {e}")
+        raise HTTPException(status_code=500, detail=f"Error processing document: {str(e)}")
+
+
+@router.get("/documents")
+async def list_documents(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    List available documents.
+    
+    Args:
+        page: Page number
+        page_size: Number of items per page
+        db: Database session
+        
+    Returns:
+        List of documents
+    """
+    # Create document processing service
+    document_service = DocumentProcessingService(db)
+    
+    try:
+        # Get document count
+        total_count = document_service.get_document_count()
+        
+        # Get documents
+        documents = await document_service.list_documents(
+            page=page,
+            page_size=page_size
+        )
+        
+        # Convert to response format
+        document_list = []
+        for doc in documents:
+            document_list.append({
+                "id": doc.id,
+                "filename": doc.filename,
+                "processing_status": doc.processing_status,
+                "created_at": doc.created_at.isoformat(),
+                "language": doc.language,
+                "has_rtl": doc.has_rtl
+            })
+        
+        return {
+            "status": "success",
+            "total": total_count,
+            "page": page,
+            "page_size": page_size,
+            "documents": document_list
+        }
+    except Exception as e:
+        logger.error(f"Error listing documents: {e}")
+        raise HTTPException(status_code=500, detail=f"Error listing documents: {str(e)}")
+
+
+@router.get("/documents/{document_id}")
+async def get_document(
+    document_id: str = Path(...),
+    as_papermage: bool = Query(False),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get a document by ID.
+    
+    Args:
+        document_id: The document ID
+        as_papermage: Whether to return PaperMage format
+        db: Database session
+        
+    Returns:
+        Document information
+    """
+    # Create document processing service
+    document_service = DocumentProcessingService(db)
+    
+    try:
+        # Get document
+        document = await document_service.get_document(
+            document_id=document_id,
+            as_papermage=as_papermage
+        )
+        
+        if not document:
+            raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+        
+        # Convert database model to response format if needed
+        if not as_papermage and hasattr(document, "to_dict"):
+            document = document.to_dict()
+        
+        return {
+            "status": "success",
+            "document": document
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting document: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting document: {str(e)}")
+
+
+@router.delete("/documents/{document_id}")
+async def delete_document(
+    document_id: str = Path(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Delete a document by ID.
+    
+    Args:
+        document_id: The document ID
+        db: Database session
+        
+    Returns:
+        Deletion status
+    """
+    # Create document processing service
+    document_service = DocumentProcessingService(db)
+    
+    try:
+        # Delete document
+        success = await document_service.delete_document(document_id=document_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+        
+        return {
+            "status": "success",
+            "message": f"Document {document_id} deleted"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting document: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting document: {str(e)}")
+
+
+@router.put("/documents/{document_id}/metadata")
+async def update_document_metadata(
+    document_id: str = Path(...),
+    metadata: Dict[str, Any] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update document metadata.
+    
+    Args:
+        document_id: The document ID
+        metadata: The metadata to update
+        db: Database session
+        
+    Returns:
+        Updated document information
+    """
+    if metadata is None:
+        metadata = {}
+    
+    # Create document processing service
+    document_service = DocumentProcessingService(db)
+    
+    try:
+        # Update document metadata
+        document = document_service.update_document_metadata(
+            document_id=int(document_id) if document_id.isdigit() else document_id,
+            metadata=metadata
+        )
+        
+        if not document:
+            raise HTTPException(status_code=404, detail=f"Document {document_id} not found")
+        
+        return {
+            "status": "success",
+            "document": document.to_dict() if hasattr(document, "to_dict") else document
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating document metadata: {e}")
+        raise HTTPException(status_code=500, detail=f"Error updating document metadata: {str(e)}") 

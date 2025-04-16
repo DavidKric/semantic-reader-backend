@@ -24,8 +24,7 @@ from app.dependencies.database import get_db
 
 # Import papermage_docling components
 try:
-    from papermage_docling.api_service import get_api_service
-    from papermage_docling.parsers.pdf_parser import DoclingPdfParser
+    from papermage_docling.converter import convert_document
     DOCLING_AVAILABLE = True
 except ImportError:
     logging.warning("papermage_docling not available. Document processing will be disabled.")
@@ -42,8 +41,8 @@ class DocumentProcessingService(BaseService[Document, int]):
     
     This service provides methods for parsing and analyzing documents,
     extracting text, and managing the document processing pipeline.
-    It integrates with both the external papermage_docling API service
-    and the local database for document persistence.
+    It integrates with both the Docling converter and the local database
+    for document persistence.
     """
     
     def __init__(self, db: Session, api_service: Optional[Any] = None):
@@ -52,7 +51,7 @@ class DocumentProcessingService(BaseService[Document, int]):
         
         Args:
             db: SQLAlchemy database session
-            api_service: Optional API service (if None, will be created)
+            api_service: Optional API service (DEPRECATED - kept for backwards compatibility)
         """
         super().__init__(Document, db)
         
@@ -63,17 +62,9 @@ class DocumentProcessingService(BaseService[Document, int]):
             return
             
         try:
-            # Get the API service
-            self.api_service = api_service or get_api_service()
-            
-            # Create a PDF parser
-            self.pdf_parser = DoclingPdfParser(
-                enable_ocr=settings.OCR_ENABLED,
-                ocr_language=settings.OCR_LANGUAGE,
-                detect_rtl=settings.DETECT_RTL
-            )
-            
-            logger.info("Initialized document processing service with docling support.")
+            # Note: We no longer use api_service or DoclingPdfParser
+            # The parameter is kept for backwards compatibility but ignored
+            logger.info("Initialized document processing service with Docling support.")
         except Exception as e:
             logger.error(f"Failed to initialize document processing service: {e}")
             self.external_api_available = False
@@ -87,13 +78,13 @@ class DocumentProcessingService(BaseService[Document, int]):
         save_result: bool = True
     ) -> Document:
         """
-        Parse a document using the appropriate parser and store in database.
+        Parse a document using Docling's converter and store in database.
         
         Args:
             document: The document content or path
             file_type: The type of document (pdf, docx, etc.)
             options: Additional parsing options
-            return_papermage: Whether to return PaperMage format
+            return_papermage: Whether to return PaperMage format (always true now)
             save_result: Whether to save the result to storage
             
         Returns:
@@ -127,16 +118,16 @@ class DocumentProcessingService(BaseService[Document, int]):
         )
         
         try:
-            # If external API is available, use it for enhanced processing
+            # If external API is available, use Docling for enhanced processing
             if self.external_api_available:
-                api_result = await self._process_with_external_api(document_content, file_type, options, save_result, return_papermage)
+                api_result = await self._process_with_docling(document_content, file_type, options)
                 
-                # Update database record with results from API
+                # Update database record with results from Docling
                 if api_result:
                     db_document = self._update_document_from_api_result(db_document, api_result)
             else:
                 # Fallback to basic local processing
-                logger.info("External API not available, using basic local processing")
+                logger.info("Docling not available, using basic local processing")
                 
                 # Basic document metadata extraction (would be enhanced in a real implementation)
                 # Note: In a real implementation, we would add local document parsing logic here
@@ -169,24 +160,28 @@ class DocumentProcessingService(BaseService[Document, int]):
             logger.error(f"Error processing document: {e}")
             raise
     
-    async def _process_with_external_api(
+    async def _process_with_docling(
         self, 
         document_content: Any, 
         file_type: str, 
-        options: Dict[str, Any],
-        save_result: bool,
-        return_papermage: bool
+        options: Dict[str, Any]
     ) -> Optional[Dict[str, Any]]:
-        """Process document with external API service."""
+        """Process document with Docling converter."""
+        # Add Docling configuration options
+        docling_options = {
+            "detect_tables": options.get("detect_tables", True),
+            "detect_figures": options.get("detect_figures", True),
+            "enable_ocr": options.get("enable_ocr", settings.OCR_ENABLED),
+            "detect_rtl": options.get("detect_rtl", settings.DETECT_RTL),
+        }
+        
+        # Add OCR language if configured
+        if hasattr(settings, "OCR_LANGUAGE") and settings.OCR_LANGUAGE:
+            docling_options["ocr_language"] = settings.OCR_LANGUAGE
+            
         if isinstance(document_content, (str, Path)):
             # Document is a file path
-            return self.api_service.process_document(
-                document_content,
-                save_result=save_result,
-                return_id=False,
-                return_papermage=return_papermage,
-                **options
-            )
+            return convert_document(document_content, options=docling_options)
         else:
             # Document is bytes or file-like, create a temporary file
             with tempfile.NamedTemporaryFile(suffix=f".{file_type}", delete=False) as temp_file:
@@ -199,30 +194,27 @@ class DocumentProcessingService(BaseService[Document, int]):
                 temp_file.flush()
                 
                 try:
-                    return self.api_service.process_document(
-                        temp_file.name,
-                        save_result=save_result,
-                        return_id=False,
-                        return_papermage=return_papermage,
-                        **options
-                    )
+                    return convert_document(temp_file.name, options=docling_options)
                 finally:
                     # Clean up temporary file
                     os.unlink(temp_file.name)
     
     def _update_document_from_api_result(self, document: Document, api_result: Dict[str, Any]) -> Document:
-        """Update document model with data from API result."""
-        # Extract metadata from API result
+        """Update document model with data from Docling result."""
+        # Extract metadata from Docling result
         metadata = api_result.get("metadata", {})
         language = metadata.get("language", "")
         has_rtl = metadata.get("is_rtl_language", False)
+        
+        # Generate a storage ID if none exists
+        storage_id = api_result.get("id") or f"doc-{uuid.uuid4()}"
         
         # Update document model
         document = self.update(
             document.id,
             processing_status="completed",
             is_processed=True,
-            storage_id=api_result.get("id"),
+            storage_id=storage_id,
             language=language,
             has_rtl=has_rtl,
             doc_metadata=metadata,
@@ -239,11 +231,11 @@ class DocumentProcessingService(BaseService[Document, int]):
     
     def _create_related_entities(self, document: Document, api_result: Dict[str, Any]) -> None:
         """
-        Create related database entities from API result.
+        Create related database entities from Docling result.
         
         Args:
             document: The parent document model
-            api_result: The API result data
+            api_result: The Docling result data
         """
         # Create pages
         for i, page_data in enumerate(api_result.get("pages", [])):
@@ -309,6 +301,9 @@ class DocumentProcessingService(BaseService[Document, int]):
         
         self.db.commit()
     
+    # Document cache and storage management
+    # These methods were previously delegated to api_service but now need direct implementation
+    
     async def get_document(
         self, 
         document_id: Union[str, int], 
@@ -316,12 +311,12 @@ class DocumentProcessingService(BaseService[Document, int]):
         sync_with_external: bool = True
     ) -> Optional[Union[Document, Dict[str, Any]]]:
         """
-        Get a document by ID, with optional enrichment from external API.
+        Get a document by ID from the database.
         
         Args:
             document_id: The document ID (database ID or storage ID)
             as_papermage: Whether to return PaperMage format
-            sync_with_external: Whether to sync with external API if available
+            sync_with_external: Whether to sync with external storage (DEPRECATED)
             
         Returns:
             The document model or data
@@ -336,52 +331,14 @@ class DocumentProcessingService(BaseService[Document, int]):
             # Try to find by storage ID
             db_document = self.db.query(Document).filter(Document.storage_id == document_id).first()
         
-        # If document found in database and PaperMage format not requested or API not available
-        if db_document and (not as_papermage or not self.external_api_available):
-            return db_document
-            
-        # If document found in database, has storage ID, PaperMage format requested, and external API available
-        if db_document and db_document.storage_id and as_papermage and self.external_api_available:
-            try:
-                return self.api_service.get_document(db_document.storage_id, as_papermage=True)
-            except Exception as e:
-                logger.error(f"Error getting document from API: {e}")
-                return db_document
-        
-        # If document not found in database but external API is available
-        if not db_document and self.external_api_available and sync_with_external:
-            try:
-                # Try to get from external API
-                api_result = self.api_service.get_document(document_id, as_papermage=as_papermage)
-                
-                if not as_papermage:
-                    # Create a new database record for this external document
-                    db_document = self.create(
-                        filename=api_result.get("filename", f"document_{document_id}"),
-                        file_type=api_result.get("file_type", "pdf"),
-                        processing_status="completed",
-                        is_processed=True,
-                        storage_id=document_id,
-                        doc_metadata=api_result.get("metadata", {})
-                    )
-                    
-                    # Create related entities
-                    self._create_related_entities(db_document, api_result)
-                    
-                    return db_document
-                
-                return api_result
-                
-            except Exception as e:
-                logger.error(f"Error getting document from API: {e}")
-                return None
-        
-        # Document not found in database or API
-        return None
+        # Return document from database
+        # Note: we no longer support retrieving documents from external storage
+        # since we've inlined the converter function
+        return db_document
     
     async def delete_document(self, document_id: Union[str, int]) -> bool:
         """
-        Delete a document by ID from both database and external storage.
+        Delete a document by ID from the database.
         
         Args:
             document_id: The document ID (database ID or storage ID)
@@ -398,15 +355,6 @@ class DocumentProcessingService(BaseService[Document, int]):
             # Try to find by storage ID
             db_document = self.db.query(Document).filter(Document.storage_id == document_id).first()
         
-        # Delete from external storage if available
-        api_success = False
-        if db_document and db_document.storage_id and self.external_api_available:
-            try:
-                api_success = self.api_service.delete_document(db_document.storage_id)
-            except Exception as e:
-                logger.error(f"Error deleting document from API: {e}")
-                # Continue with database deletion even if API fails
-        
         # Delete from database if found
         db_success = False
         if db_document:
@@ -416,7 +364,7 @@ class DocumentProcessingService(BaseService[Document, int]):
             # Then delete the document
             db_success = self.delete(db_document.id)
         
-        return api_success or db_success
+        return db_success
     
     def _delete_related_entities(self, document_id: int) -> None:
         """Delete all related entities for a document."""
@@ -440,17 +388,17 @@ class DocumentProcessingService(BaseService[Document, int]):
         page_size: int = 20
     ) -> List[Union[Document, Dict[str, Any]]]:
         """
-        List available documents from database and optionally external storage.
+        List available documents from database.
         
         Args:
             filter_criteria: Optional filter criteria
-            include_external: Whether to include documents from external storage
-            sync_with_external: Whether to sync external documents with local database
+            include_external: DEPRECATED - kept for backwards compatibility
+            sync_with_external: DEPRECATED - kept for backwards compatibility
             page: Page number for pagination
             page_size: Number of items per page
             
         Returns:
-            List of document models or metadata
+            List of document models
         """
         # Get documents from database
         query = self.db.query(Document)
@@ -468,34 +416,6 @@ class DocumentProcessingService(BaseService[Document, int]):
         offset = (page - 1) * page_size
         db_documents = query.offset(offset).limit(page_size).all()
         
-        # Get documents from external storage if requested and API available
-        if include_external and self.external_api_available:
-            try:
-                # Get documents from external API
-                api_documents = self.api_service.list_documents(filter_criteria)
-                
-                if sync_with_external:
-                    # Find documents that are in API but not in DB
-                    db_storage_ids = {doc.storage_id for doc in db_documents if doc.storage_id}
-                    
-                    # For each API document not in DB, create a new DB record
-                    for api_doc in api_documents:
-                        doc_id = api_doc.get("id")
-                        if doc_id and doc_id not in db_storage_ids:
-                            # Create minimal DB record
-                            db_doc = self.create(
-                                filename=api_doc.get("filename", f"document_{doc_id}"),
-                                file_type=api_doc.get("file_type", "pdf"),
-                                processing_status="completed",
-                                is_processed=True,
-                                storage_id=doc_id,
-                                doc_metadata=api_doc.get("metadata", {})
-                            )
-                            db_documents.append(db_doc)
-            except Exception as e:
-                logger.error(f"Error listing documents from API: {e}")
-                # Continue with database results only
-        
         return db_documents
     
     def update_document_metadata(
@@ -505,12 +425,12 @@ class DocumentProcessingService(BaseService[Document, int]):
         sync_with_external: bool = True
     ) -> Optional[Document]:
         """
-        Update document metadata in the database and optionally in external storage.
+        Update document metadata in the database.
         
         Args:
             document_id: The document ID
             metadata: The metadata to update
-            sync_with_external: Whether to sync with external API
+            sync_with_external: DEPRECATED - kept for backwards compatibility
             
         Returns:
             Updated document or None if not found
@@ -528,15 +448,6 @@ class DocumentProcessingService(BaseService[Document, int]):
             document_id,
             doc_metadata=updated_metadata
         )
-        
-        # Sync with external API if requested and available
-        if sync_with_external and self.external_api_available and document.storage_id:
-            try:
-                # Update metadata in external API
-                self.api_service.update_document_metadata(document.storage_id, metadata)
-            except Exception as e:
-                logger.error(f"Error updating document metadata in API: {e}")
-                # Continue even if API update fails
         
         return document
     
@@ -560,6 +471,8 @@ class DocumentProcessingService(BaseService[Document, int]):
         
         return query.count()
     
+    # These methods are simplified stubs since we no longer have the api_service layer
+    
     def clear_document_cache(self) -> bool:
         """
         Clear the document cache.
@@ -567,16 +480,8 @@ class DocumentProcessingService(BaseService[Document, int]):
         Returns:
             True if cache was cleared
         """
-        if not self.external_api_available:
-            logger.warning("Document processing is not available (docling not installed)")
-            return False
-        
-        try:
-            self.api_service.clear_cache()
-            return True
-        except Exception as e:
-            logger.error(f"Error clearing cache: {e}")
-            return False
+        # No caching in this implementation
+        return True
     
     def get_pipeline_stats(self) -> Dict[str, Any]:
         """
@@ -591,11 +496,13 @@ class DocumentProcessingService(BaseService[Document, int]):
                 "error": "Document processing is not available (docling not installed)"
             }
         
-        try:
-            return self.api_service.get_pipeline_stats()
-        except Exception as e:
-            logger.error(f"Error getting pipeline stats: {e}")
-            return {"status": "error", "message": str(e)}
+        # No detailed stats in this implementation
+        return {
+            "status": "ok",
+            "document_converter": "docling.document_converter.DocumentConverter",
+            "parser": "doclingparse_v4",
+            "rtl_support": True
+        }
     
     def get_cache_stats(self) -> Dict[str, Any]:
         """
@@ -610,8 +517,9 @@ class DocumentProcessingService(BaseService[Document, int]):
                 "error": "Document processing is not available (docling not installed)"
             }
         
-        try:
-            return self.api_service.get_cache_stats()
-        except Exception as e:
-            logger.error(f"Error getting cache stats: {e}")
-            return {"status": "error", "message": str(e)} 
+        # No caching in this implementation
+        return {
+            "status": "ok",
+            "cache_enabled": False,
+            "items_cached": 0
+        } 

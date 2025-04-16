@@ -1,0 +1,11 @@
+# Test dependencies for reporting module
+pytest==7.3.1
+pytest-cov==4.1.0
+matplotlib==3.7.1
+numpy==1.24.3
+pydantic==1.10.7
+fastapi==0.95.1
+starlette==0.26.1
+httpx==0.24.1
+beautifulsoup4==4.12.2
+coverage==7.8.0 

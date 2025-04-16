@@ -1,8 +1,8 @@
 """
 Pipeline service for document processing operations.
 
-This service provides utilities for managing and configuring
-document processing pipelines and analyzers.
+This service provides simplified utilities for document processing configuration.
+After the Docling refactoring, most pipeline functionality is now directly handled by Docling's document converter.
 """
 
 import logging
@@ -16,13 +16,7 @@ from app.services.base import BaseService
 
 # Import papermage_docling components
 try:
-    # Import predictor utilities
-    from papermage_docling.predictors import (
-        get_structure_predictor,
-        get_figure_predictor,
-        get_table_predictor,
-        get_language_predictor
-    )
+    from papermage_docling.converter import convert_document
     DOCLING_AVAILABLE = True
 except ImportError:
     logging.warning("papermage_docling not available. Pipeline features will be disabled.")
@@ -33,10 +27,11 @@ logger = logging.getLogger(__name__)
 
 class PipelineService(BaseService):
     """
-    Service for managing document processing pipelines.
+    Service for managing document processing configurations.
     
-    This service provides methods for configuring and customizing the
-    document processing pipeline, including predictor configuration.
+    This is a simplified version after Docling refactoring. Most pipeline functionality
+    is now directly handled by Docling's document converter with appropriate configuration
+    passed as options.
     """
     
     def __init__(self, db: Optional[Session] = None):
@@ -55,228 +50,74 @@ class PipelineService(BaseService):
             return
             
         try:
-            from papermage_docling.api_service import get_api_service
-            self.api_service = get_api_service()
-            self.pipeline = self.api_service.pipeline
+            # Initialize service with default configuration
+            self._config = {
+                "ocr_enabled": settings.OCR_ENABLED,
+                "ocr_language": settings.OCR_LANGUAGE,
+                "detect_rtl": settings.DETECT_RTL,
+                "detect_tables": True,
+                "detect_figures": True,
+            }
             
-            # Store predictor instances
-            self.predictors = {}
-            self._initialize_predictors()
-            
-            logger.info("Initialized pipeline service with docling support.")
+            logger.info("Initialized pipeline service with Docling support.")
         except Exception as e:
             logger.error(f"Failed to initialize pipeline service: {e}")
             raise
     
-    def _initialize_predictors(self):
-        """Initialize the predictor instances."""
-        if not DOCLING_AVAILABLE:
-            return
-            
-        try:
-            # Structure predictor
-            self.predictors['structure'] = get_structure_predictor()
-            
-            # Figure predictor
-            self.predictors['figure'] = get_figure_predictor()
-            
-            # Table predictor
-            self.predictors['table'] = get_table_predictor()
-            
-            # Language predictor
-            self.predictors['language'] = get_language_predictor()
-            
-            logger.info("Initialized predictors.")
-        except Exception as e:
-            logger.error(f"Failed to initialize predictors: {e}")
-            raise
-    
-    def get_available_predictors(self) -> List[str]:
+    def get_available_features(self) -> List[str]:
         """
-        Get available predictors.
+        Get available document processing features.
         
         Returns:
-            List of available predictor names
+            List of available feature names
         """
         if not DOCLING_AVAILABLE:
             raise ValueError("Pipeline features are not available (docling not installed)")
         
-        return list(self.predictors.keys())
-    
-    def get_predictor_config(self, predictor_name: str) -> Dict[str, Any]:
-        """
-        Get predictor configuration.
-        
-        Args:
-            predictor_name: The name of the predictor
-            
-        Returns:
-            Predictor configuration dictionary
-        """
-        if not DOCLING_AVAILABLE:
-            raise ValueError("Pipeline features are not available (docling not installed)")
-        
-        if predictor_name not in self.predictors:
-            raise ValueError(f"Predictor '{predictor_name}' not found")
-        
-        predictor = self.predictors[predictor_name]
-        
-        # Return configuration if available
-        if hasattr(predictor, "get_config"):
-            return predictor.get_config()
-        
-        # Otherwise, return basic info
-        return {
-            "name": predictor_name,
-            "type": type(predictor).__name__,
-            "enabled": True
-        }
-    
-    def update_predictor_config(self, predictor_name: str, config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Update predictor configuration.
-        
-        Args:
-            predictor_name: The name of the predictor
-            config: Configuration dictionary
-            
-        Returns:
-            Updated predictor configuration
-        """
-        if not DOCLING_AVAILABLE:
-            raise ValueError("Pipeline features are not available (docling not installed)")
-        
-        if predictor_name not in self.predictors:
-            raise ValueError(f"Predictor '{predictor_name}' not found")
-        
-        predictor = self.predictors[predictor_name]
-        
-        # Update configuration if available
-        if hasattr(predictor, "update_config"):
-            return predictor.update_config(config)
-        
-        # Otherwise, try to set attributes
-        for key, value in config.items():
-            if hasattr(predictor, key):
-                setattr(predictor, key, value)
-        
-        return self.get_predictor_config(predictor_name)
+        return ["tables", "figures", "rtl", "ocr", "metadata"]
     
     def get_pipeline_config(self) -> Dict[str, Any]:
         """
-        Get pipeline configuration.
+        Get document processing configuration.
         
         Returns:
-            Pipeline configuration dictionary
+            Document processing configuration dictionary
         """
         if not DOCLING_AVAILABLE:
             raise ValueError("Pipeline features are not available (docling not installed)")
         
-        # Get pipeline configuration
-        config = {
-            "predictors": self.get_available_predictors(),
-            "settings": {
-                "ocr_enabled": settings.OCR_ENABLED,
-                "ocr_language": settings.OCR_LANGUAGE,
-                "detect_rtl": settings.DETECT_RTL
-            }
+        # Return current configuration
+        return {
+            "settings": self._config,
+            "features": self.get_available_features(),
+            "docling_version": "doclingparse_v4"  # Using Docling Parse v4 as specified
         }
-        
-        return config
     
     def update_pipeline_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Update pipeline configuration.
+        Update document processing configuration.
         
         Args:
             config: Configuration dictionary
             
         Returns:
-            Updated pipeline configuration
+            Updated document processing configuration
         """
         if not DOCLING_AVAILABLE:
             raise ValueError("Pipeline features are not available (docling not installed)")
         
-        # Update pipeline configuration
+        # Update configuration
         if "settings" in config:
             settings_config = config["settings"]
             
-            # Update OCR settings
-            if "ocr_enabled" in settings_config:
-                settings.OCR_ENABLED = settings_config["ocr_enabled"]
-            
-            if "ocr_language" in settings_config:
-                settings.OCR_LANGUAGE = settings_config["ocr_language"]
-            
-            if "detect_rtl" in settings_config:
-                settings.DETECT_RTL = settings_config["detect_rtl"]
-        
-        return self.get_pipeline_config()
-    
-    def customize_pipeline(self, steps: List[str], parameters: Dict[str, Any] = None) -> Dict[str, Any]:
-        """
-        Customize the document processing pipeline.
-        
-        Args:
-            steps: Ordered list of pipeline step names to enable
-            parameters: Pipeline-wide parameters
-            
-        Returns:
-            Updated pipeline configuration
-        """
-        if not DOCLING_AVAILABLE:
-            raise ValueError("Pipeline service is not available (docling not installed)")
-        
-        if parameters is None:
-            parameters = {}
-        
-        # Create a new pipeline
-        pipeline = SimplePipeline(name="CustomPipeline")
-        
-        # Configure pipeline parameters
-        for key, value in parameters.items():
-            if hasattr(pipeline, key):
-                setattr(pipeline, key, value)
-        
-        # Create processor class for predictor wrapping
-        class PredictorProcessor(DocumentProcessor):
-            def __init__(self, name, predictor):
-                super().__init__(name)
-                self.predictor = predictor
-            
-            def process(self, doc, **kwargs):
-                # Use the predict_docling method if available, otherwise fall back
-                if hasattr(self.predictor, 'predict_docling'):
-                    return self.predictor.predict_docling(doc, **kwargs)
-                else:
-                    # Fallback
-                    logger.warning(f"Predictor {self.name} doesn't implement predict_docling")
-                    return doc
-        
-        # Add requested steps
-        for step_name in steps:
-            if step_name.lower() == 'language':
-                pipeline.add_processor(
-                    PredictorProcessor("LanguageDetection", self.predictors['language'])
-                )
-            elif step_name.lower() == 'structure':
-                pipeline.add_processor(
-                    PredictorProcessor("StructureAnalysis", self.predictors['structure'])
-                )
-            elif step_name.lower() == 'table':
-                pipeline.add_processor(
-                    PredictorProcessor("TableDetection", self.predictors['table'])
-                )
-            elif step_name.lower() == 'figure':
-                pipeline.add_processor(
-                    PredictorProcessor("FigureDetection", self.predictors['figure'])
-                )
-            else:
-                logger.warning(f"Unknown step name: {step_name}")
-        
-        # Set the customized pipeline
-        self.api_service.pipeline = pipeline
-        self.pipeline = pipeline
+            # Update settings
+            for key in ["ocr_enabled", "ocr_language", "detect_rtl", "detect_tables", "detect_figures"]:
+                if key in settings_config:
+                    self._config[key] = settings_config[key]
+                    
+                    # Also update app settings if applicable
+                    if hasattr(settings, key.upper()):
+                        setattr(settings, key.upper(), settings_config[key])
         
         return self.get_pipeline_config()
     
@@ -290,87 +131,51 @@ class PipelineService(BaseService):
         if not DOCLING_AVAILABLE:
             raise ValueError("Pipeline service is not available (docling not installed)")
         
-        return self.api_service.get_pipeline_stats()
+        # Simplified stats as we no longer maintain a separate pipeline
+        return {
+            "status": "active",
+            "converter": "docling.document_converter.DocumentConverter",
+            "parser": "doclingparse_v4",
+            "features_enabled": [
+                feature for feature, enabled in {
+                    "ocr": self._config.get("ocr_enabled", False),
+                    "rtl": self._config.get("detect_rtl", True),
+                    "tables": self._config.get("detect_tables", True),
+                    "figures": self._config.get("detect_figures", True)
+                }.items() if enabled
+            ]
+        }
     
-    def analyze_document(self, document_id: str, analysis_type: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
+    def get_converter_options(self) -> Dict[str, Any]:
         """
-        Perform document analysis.
+        Get options for the Docling document converter.
+        
+        Returns:
+            Dictionary with converter options
+        """
+        return {
+            "enable_ocr": self._config.get("ocr_enabled", False),
+            "ocr_language": self._config.get("ocr_language", "eng"),
+            "detect_rtl": self._config.get("detect_rtl", True),
+            "detect_tables": self._config.get("detect_tables", True),
+            "detect_figures": self._config.get("detect_figures", True)
+        }
+    
+    def process_document(self, document_path: str) -> Dict[str, Any]:
+        """
+        Process a document using the current configuration.
         
         Args:
-            document_id: The document ID
-            analysis_type: Type of analysis to perform
-            parameters: Analysis parameters
+            document_path: Path to the document
             
         Returns:
-            Analysis results
+            Processed document data
         """
         if not DOCLING_AVAILABLE:
             raise ValueError("Pipeline service is not available (docling not installed)")
         
-        if parameters is None:
-            parameters = {}
+        # Get current options
+        options = self.get_converter_options()
         
-        # Get the document
-        doc = self.api_service.get_document(document_id)
-        
-        # Perform analysis based on type
-        if analysis_type == 'language':
-            return self._analyze_language(doc, parameters)
-        elif analysis_type == 'structure':
-            return self._analyze_structure(doc, parameters)
-        elif analysis_type == 'tables':
-            return self._analyze_tables(doc, parameters)
-        elif analysis_type == 'figures':
-            return self._analyze_figures(doc, parameters)
-        else:
-            raise ValueError(f"Unknown analysis type: {analysis_type}")
-    
-    def _analyze_language(self, doc, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform language analysis."""
-        predictor = self.predictors['language']
-        
-        # Extract text from document
-        text = doc.get_full_text() if hasattr(doc, 'get_full_text') else ""
-        
-        # Analyze language
-        results = predictor.predict_document_language(text)
-        
-        return {
-            "document_language": results.get('language'),
-            "language_name": results.get('language_name'),
-            "confidence": results.get('confidence'),
-            "is_rtl": results.get('is_rtl'),
-            "additional_languages": results.get('additional_languages', [])
-        }
-    
-    def _analyze_structure(self, doc, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform structure analysis."""
-        predictor = self.predictors['structure']
-        
-        # Analysis logic depends on the specific predictor implementation
-        # This is a simplified version
-        return {
-            "sections_count": len(getattr(doc, 'sections', [])),
-            "paragraphs_count": len(getattr(doc, 'paragraphs', [])),
-            "structure_hierarchy": "Document structure analysis result"
-        }
-    
-    def _analyze_tables(self, doc, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform table analysis."""
-        predictor = self.predictors['table']
-        
-        # Analysis logic depends on the specific predictor implementation
-        return {
-            "tables_count": len(getattr(doc, 'tables', [])),
-            "tables_by_page": "Table breakdown by page"
-        }
-    
-    def _analyze_figures(self, doc, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform figure analysis."""
-        predictor = self.predictors['figure']
-        
-        # Analysis logic depends on the specific predictor implementation
-        return {
-            "figures_count": len(getattr(doc, 'figures', [])),
-            "figures_by_page": "Figure breakdown by page"
-        } 
+        # Process the document using the converter
+        return convert_document(document_path, options=options) 

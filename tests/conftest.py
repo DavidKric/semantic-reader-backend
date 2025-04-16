@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+from pytest_html import extras
 
 from app.main import app
 from app.core.database import Base, get_db
@@ -23,6 +24,15 @@ from app.models.document import Document
 
 # Get the test configuration file
 CONFIG_FILE = Path(__file__).parent / "e2e_test_config.json"
+
+# Define test directories for easy access
+TEST_DIR = Path(__file__).parent
+TEST_DATA_DIR = TEST_DIR / "data"
+TEST_EXPECTED_DIR = TEST_DATA_DIR / "expected"
+TEST_VISUALS_DIR = TEST_DIR / "visuals"
+
+# Ensure visuals directory exists
+TEST_VISUALS_DIR.mkdir(exist_ok=True)
 
 def pytest_configure(config):
     """
@@ -238,3 +248,103 @@ def sample_document(test_db):
     test_db.refresh(document)
     
     return document 
+
+@pytest.fixture
+def sample_pdfs():
+    """Returns a dictionary of sample PDF paths."""
+    # This will be populated when we add the actual PDFs
+    return {
+        "simple": None,  # Will be TEST_DATA_DIR / "sample1_simple.pdf"
+        "multicolumn": None,
+        "scanned": None,
+        "tables": None,
+        "figures": None,
+        "mixed": None,
+        "corrupt": None,
+    }
+
+@pytest.fixture
+def expected_outputs():
+    """Returns a dictionary of expected JSON outputs."""
+    expected = {}
+    for json_file in TEST_EXPECTED_DIR.glob("*.json"):
+        with open(json_file, "r") as f:
+            expected[json_file.stem] = json.load(f)
+    return expected
+
+@pytest.fixture
+def attach_visual(request):
+    """Fixture to attach visualization images to the HTML report."""
+    def _attach_visual(image_path, name=None):
+        if not name:
+            name = os.path.basename(image_path)
+        # Create a thumbnail and larger version for the HTML report
+        request.node.user_properties.append(
+            ("extra", extras.image(str(image_path), name))
+        )
+    return _attach_visual
+
+@pytest.fixture
+def compare_json():
+    """Fixture to compare JSON outputs with expected outputs."""
+    def _compare(actual, expected, ignore_keys=None):
+        """
+        Compare two JSON objects, optionally ignoring specific keys.
+        
+        Args:
+            actual: The actual JSON object
+            expected: The expected JSON object
+            ignore_keys: List of keys to ignore in the comparison
+            
+        Returns:
+            True if the JSONs match, False otherwise
+        """
+        if ignore_keys is None:
+            ignore_keys = []
+            
+        if isinstance(actual, dict) and isinstance(expected, dict):
+            # Check if all keys in expected are in actual
+            for key in expected:
+                if key in ignore_keys:
+                    continue
+                if key not in actual:
+                    print(f"Key '{key}' missing from actual JSON")
+                    return False
+                if not _compare(actual[key], expected[key], ignore_keys):
+                    print(f"Values don't match for key '{key}'")
+                    return False
+            
+            # Check if all keys in actual are in expected
+            for key in actual:
+                if key in ignore_keys:
+                    continue
+                if key not in expected:
+                    print(f"Unexpected key '{key}' in actual JSON")
+                    return False
+            
+            return True
+        
+        elif isinstance(actual, list) and isinstance(expected, list):
+            if len(actual) != len(expected):
+                print(f"List lengths don't match: {len(actual)} vs {len(expected)}")
+                return False
+            
+            # For simple lists of primitives, sort and compare
+            if all(not isinstance(x, (dict, list)) for x in actual + expected):
+                return sorted(actual) == sorted(expected)
+            
+            # For lists of objects, compare each pair
+            for a_item, e_item in zip(actual, expected):
+                if not _compare(a_item, e_item, ignore_keys):
+                    return False
+            
+            return True
+        
+        else:
+            # Compare primitive values
+            equal = actual == expected
+            if not equal:
+                print(f"Values don't match: {actual} vs {expected}")
+            return equal
+    
+    return _compare 

@@ -1,88 +1,94 @@
 """
-Health check endpoints for the application.
-
-This module provides endpoints for checking the health and status
-of the application and its dependencies.
+Health check endpoints for the API.
 """
 
-from fastapi import APIRouter, status
+import logging
+import platform
+import sys
+from typing import Dict, Any
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.schemas.health import HealthResponse, DetailedHealthResponse, VersionResponse
+from app.api.deps import get_db
+from app.services.document_processing_service import DocumentProcessingService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
-
-@router.get(
-    "/health",
-    response_model=HealthResponse,
-    status_code=status.HTTP_200_OK,
-    tags=["system"],
-    summary="Basic Health Check",
-    description="Get basic health status of the API"
-)
-async def health_check() -> HealthResponse:
+@router.get("/health", response_model=Dict[str, Any])
+async def health_check(db: AsyncSession = Depends(get_db)):
     """
-    Basic health check endpoint.
+    Health check endpoint.
     
-    Returns a simple health status for basic monitoring.
+    Returns information about the API health status, including:
+    - API version
+    - Database status
+    - Document processing status
+    - System information
     """
-    return HealthResponse(
-        status="ok",
-    )
-
-
-@router.get(
-    "/health/detail",
-    response_model=DetailedHealthResponse,
-    status_code=status.HTTP_200_OK,
-    tags=["system"],
-    summary="Detailed Health Check",
-    description="Get detailed health status of the API and its components"
-)
-async def detailed_health_check() -> DetailedHealthResponse:
-    """
-    Detailed health check endpoint.
-    
-    Checks the status of all major components and returns detailed health information.
-    """
-    components = {
-        "app": "ok"
+    # Base health response
+    health_data = {
+        "status": "ok",
+        "version": settings.VERSION,
+        "env": settings.ENVIRONMENT,
+        "system": {
+            "python_version": platform.python_version(),
+            "system": platform.system(),
+            "node": platform.node()
+        }
     }
     
-    # Try to check if the document processing pipeline is available
+    # Check database connection
     try:
-        from papermage_docling.api_service import get_api_service
-        api_service = get_api_service()
-        components["document_processing"] = "ok"
-    except Exception:
-        components["document_processing"] = "not_configured"
+        # Simple database query
+        result = await db.execute("SELECT 1")
+        health_data["database"] = {
+            "status": "ok",
+            "message": "Database connection successful"
+        }
+    except Exception as e:
+        health_data["database"] = {
+            "status": "error",
+            "message": f"Database connection failed: {str(e)}"
+        }
+        health_data["status"] = "degraded"
     
-    # Overall status is ok only if all components are ok
-    status_value = "ok" if all(v == "ok" for v in components.values()) else "degraded"
+    # Check docling availability
+    try:
+        # Check if papermage_docling is available
+        try:
+            from papermage_docling.converter import convert_document
+            
+            # Report Docling status
+            health_data["document_processing"] = {
+                "status": "ok",
+                "converter": "docling.document_converter.DocumentConverter",
+                "parser": "doclingparse_v4",
+                "rtl_support": True
+            }
+        except ImportError:
+            health_data["document_processing"] = {
+                "status": "unavailable",
+                "message": "papermage_docling module not available"
+            }
+            health_data["status"] = "degraded"
+    except Exception as e:
+        health_data["document_processing"] = {
+            "status": "error",
+            "message": f"Error checking document processing: {str(e)}"
+        }
+        health_data["status"] = "degraded"
     
-    return DetailedHealthResponse(
-        status=status_value,
-        components=components
-    )
+    return health_data
 
-
-@router.get(
-    "/version",
-    response_model=VersionResponse,
-    status_code=status.HTTP_200_OK,
-    tags=["system"],
-    summary="Version Information",
-    description="Get version information about the API"
-)
-async def get_version() -> VersionResponse:
+@router.get("/version")
+async def get_version():
     """
-    Version information endpoint.
-    
-    Returns the version information for the API.
+    Get the API version.
     """
-    return VersionResponse(
-        version=settings.APP_VERSION,
-        api_version=settings.API_VERSION,
-        commit=getattr(settings, "COMMIT_HASH", None)
-    ) 
+    return {
+        "version": settings.VERSION,
+        "env": settings.ENVIRONMENT
+    } 

@@ -18,8 +18,7 @@ from datetime import datetime
 import aiohttp
 from fastapi import UploadFile, HTTPException
 
-from papermage_docling import CoreRecipe, DoclingPdfParser
-from papermage_docling.api.gateway import gateway
+from papermage_docling.converter import convert_document
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -78,13 +77,6 @@ class DocumentProcessor:
         """Initialize the document processor."""
         self.temp_dir = Path(tempfile.gettempdir()) / "papermage_docling"
         self.temp_dir.mkdir(exist_ok=True)
-        self.recipe = CoreRecipe(
-            enable_ocr=settings.OCR_ENABLED,
-            ocr_language=settings.OCR_LANGUAGE,
-            detect_rtl=settings.DETECT_RTL,
-            detect_tables=True,
-            detect_figures=True
-        )
         logger.info(f"Initialized DocumentProcessor with temp directory: {self.temp_dir}")
     
     async def process_url_documents(self, urls: List[str], job_id: str, 
@@ -275,7 +267,7 @@ class DocumentProcessor:
     
     def _process_document(self, file_path: str, options: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Process a document using the CoreRecipe.
+        Process a document using Docling conversion.
         
         Args:
             file_path: Path to the document file
@@ -288,27 +280,17 @@ class DocumentProcessor:
             HTTPException: If processing fails
         """
         try:
-            # Configure recipe with options
-            recipe_options = {
+            # Configure conversion options
+            conversion_options = {
                 "enable_ocr": options.get("perform_ocr", settings.OCR_ENABLED),
                 "ocr_language": options.get("ocr_language", settings.OCR_LANGUAGE),
                 "detect_rtl": options.get("detect_rtl", settings.DETECT_RTL),
                 "detect_tables": options.get("extract_tables", True),
                 "detect_figures": options.get("extract_figures", True),
-                "detect_equations": options.get("extract_equations", False),
-                "detect_sections": options.get("extract_sections", True),
             }
             
-            # Process the document
-            result = self.recipe.run(file_path)
-            
-            # Convert to JSON if needed
-            if hasattr(result, 'to_json'):
-                return result.to_json()
-            elif hasattr(result, '__dict__'):
-                return result.__dict__
-            else:
-                return {"content": str(result)}
+            # Process the document using Docling directly
+            return convert_document(file_path, conversion_options)
                 
         except Exception as e:
             logger.error(f"Error processing document: {str(e)}")

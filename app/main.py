@@ -20,6 +20,7 @@ from app.api import api_router
 from app.core.config import settings
 from app.core.database import Base, engine
 from app.utils.logging import configure_logging, log_request_details
+from app.reporting.service import init_reporting
 
 
 # Configure logging
@@ -46,6 +47,9 @@ async def lifespan(app: FastAPI):
             logger.info("Database tables created successfully")
         except Exception as e:
             logger.error(f"Error creating database tables: {e}")
+    
+    # Initialize the reporting module
+    init_reporting(app)
     
     yield
     

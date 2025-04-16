@@ -1,92 +1,127 @@
-# PaperMage-Docling End-to-End Testing
+# Testing Framework for Semantic-Reader-Backend
 
-This directory contains end-to-end (E2E) tests for PaperMage-Docling, designed to compare its outputs with the original PaperMage implementation.
+This directory contains the comprehensive test suite for the Semantic-Reader-Backend. The tests validate every aspect of the document processing pipeline, API endpoints, and the integration with Docling.
 
-## Overview
+## Directory Structure
 
-The E2E testing framework is designed to:
+The tests are organized by feature area:
 
-1. Compare PaperMage-Docling outputs with the original PaperMage
-2. Validate compatibility and identical behavior
-3. Test various document types (simple, complex layouts, RTL, large docs)
-4. Generate detailed reports of differences
-
-## Test Structure
-
-- `test_end_to_end.py`: Main test file with fixtures and comparison functions
-- `conftest.py`: Pytest configuration with HTML report setup
-- `e2e_test_config.json`: Configuration for tolerances and test parameters
-- `test_data/`: Directory containing test documents and cache
+```
+tests/
+├── api/                # API endpoint tests
+├── converter/          # Converter module tests
+├── data/               # Test PDF files and expected outputs
+│   └── expected/       # Expected JSON outputs (snapshots)
+├── figures/            # Figure detection and extraction tests
+├── layout/             # Layout analysis and reading order tests
+├── ocr/                # OCR text extraction tests
+├── tables/             # Table extraction and structure tests
+└── visuals/            # Generated visualization images
+```
 
 ## Running Tests
 
-To run all E2E tests:
+### Running the Full Test Suite
+
+To run the entire test suite with coverage report and HTML output:
 
 ```bash
-# From the project root
-pytest papermage_docling/tests/test_end_to_end.py -v
+pytest --cov=app --html=reports/test_report.html --self-contained-html
 ```
 
-To run tests for specific document types:
+This will:
+- Run all tests
+- Generate a coverage report
+- Create an HTML report with visualizations in `reports/test_report.html`
+
+### Running Specific Tests
+
+To run tests for a specific feature area:
 
 ```bash
-# Run tests for simple documents only
-pytest papermage_docling/tests/test_end_to_end.py -v -m simple
+# Run only layout tests
+pytest tests/layout/
 
-# Run tests for RTL documents only
-pytest papermage_docling/tests/test_end_to_end.py -v -m rtl
+# Run a specific test file
+pytest tests/tables/test_extraction.py
 
-# Run performance tests only
-pytest papermage_docling/tests/test_end_to_end.py -v -m performance
+# Run a specific test function
+pytest tests/api/test_routes.py::test_conversion_endpoint_success
 ```
 
-## Configuration
+## Test Visualization
 
-The test framework is configured via `e2e_test_config.json`, which allows for:
+Many tests generate visual artifacts in the `tests/visuals/` directory:
 
-- Setting tolerance levels for coordinate differences
-- Configuring text similarity thresholds
-- Specifying test document paths
-- Enabling/disabling HTML reports
+- `*_layout.png` - Text layout and bounding boxes
+- `*_tables.png` - Table detection and structure
+- `*_figures.png` - Figure detection and captions
+- `*_ocr.png` - OCR text extraction
 
-## Adding Test Documents
+These images are also embedded in the HTML report for easy inspection.
 
-1. Place your test documents in the appropriate subdirectory under `test_data/documents/`:
-   - `simple/`: Simple single-column documents
-   - `complex/`: Multi-column, tables, complex layouts
-   - `rtl/`: Right-to-left language documents
-   - `large/`: Large documents for performance testing
+## Updating Expected Outputs (Snapshots)
 
-2. Update the `document_samples` section in `e2e_test_config.json` to include your new documents.
+When intentional changes are made to the output format, the expected JSON files (snapshots) need to be updated:
 
-## Test Reports
+1. Run the specific failing test to identify the differences:
+   ```bash
+   pytest tests/converter/test_full_conversion.py -v
+   ```
 
-HTML test reports are automatically generated in `test_results/html/` with timestamps.
-These reports include:
+2. Verify that the differences are expected and acceptable.
 
-- Overview of pass/fail for each test
-- Detailed description of any differences found
-- Performance metrics
-- Visualizations of the document processing outcomes (when available)
+3. To update a specific expected output:
+   ```bash
+   # Manually copy the current output to the expected directory
+   cp /path/to/current/output.json tests/data/expected/sample_name.json
+   ```
 
-## Integration with CI/CD
+4. To update all expected outputs:
+   ```bash
+   # Run the update script (to be implemented)
+   python tests/update_expected_outputs.py
+   ```
 
-These tests can be integrated into CI/CD pipelines by:
+5. Run the tests again to ensure they pass with the updated outputs.
 
-1. Installing both PaperMage and PaperMage-Docling
-2. Running the E2E tests in the pipeline
-3. Publishing the HTML report as an artifact
+## Adding New Tests
 
-Example GitHub Actions workflow snippet:
+When adding new tests:
 
-```yaml
-- name: Run E2E tests
-  run: |
-    python -m pytest papermage_docling/tests/test_end_to_end.py -v
+1. Place them in the appropriate feature directory.
+2. Follow the naming convention: `test_<feature>.py`.
+3. Use the fixtures from `conftest.py` for common operations.
+4. For visualization tests, use the `attach_visual` fixture to include images in the report.
+5. For JSON comparisons, use the `compare_json` fixture to compare with expected outputs.
 
-- name: Upload test report
-  uses: actions/upload-artifact@v2
-  with:
-    name: e2e-test-report
-    path: papermage_docling/tests/test_results/html/*.html
+## Test Data
+
+Sample PDF files in `tests/data/` are used as inputs for the tests:
+
+- `sample1_simple.pdf` - Simple text-only document
+- `sample2_multicolumn.pdf` - Multi-column document
+- `sample3_scanned.pdf` - Scanned document for OCR testing
+- `sample4_tables.pdf` - Document with tables
+- `sample5_figures.pdf` - Document with figures
+- `sample6_mixed.pdf` - Complex document with mixed content
+- `corrupt.pdf` - Invalid PDF for error handling tests
+
+Each sample has a corresponding expected JSON output in `tests/data/expected/`.
+
+## Coverage Goals
+
+The test suite aims for 100% test coverage of:
+
+- Document processing features (layout, OCR, tables, figures)
+- API routes
+- Converter module
+- Error handling and edge cases
+
+Coverage reports can be viewed in the terminal after running tests or as an HTML report:
+
+```bash
+# Generate HTML coverage report
+coverage html
+# Open htmlcov/index.html in a browser
 ``` 
