@@ -53,10 +53,12 @@ uv.lock
 *.swp
 *.swo
 .DS_Store
+.cursor/
+.cursor/mcp.json
 
 # Dependency directories
 node_modules/
 
 # Task files
 tasks.json
-tasks/ .cursor/
+tasks/ 
