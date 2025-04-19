@@ -3,13 +3,12 @@
 Test script to verify the API endpoints work with the new Docling converter.
 """
 
-import os
-import sys
 import json
-import requests
-from pathlib import Path
-import tempfile
+import sys
 import time
+from pathlib import Path
+
+import requests
 
 # Add the src directory to Python path
 src_path = Path(__file__).resolve().parents[2] / "src"
@@ -166,7 +165,7 @@ def test_recipe_api_server():
                 assert "result" in result, "Missing 'result' in response"
                 
                 doc_result = result["result"]
-                print(f"✅ Recipe API test passed! Result has document data")
+                print("✅ Recipe API test passed! Result has document data")
                 return True
             
             if result.get("status") == "error":

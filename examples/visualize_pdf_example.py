@@ -8,9 +8,10 @@ This script shows how to:
 3. Use different options like displaying text, showing interactively, etc.
 """
 
-import os
 import argparse
+import os
 from pathlib import Path
+
 from papermage_docling.visualizers import PdfVisualizer
 
 

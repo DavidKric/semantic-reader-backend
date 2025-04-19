@@ -46,6 +46,13 @@ dependencies = [
     "docling-ibm-models>=3.4.1",
     "pytest-html>=4.1.1",
     "aiohttp>=3.11.16",
+    "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
+    "pytest-asyncio>=0.26.0",
+    "pytest-benchmark>=5.1.0",
+    "docling-core>=2.26.3",
+    "docling-parse>=4.0.1",
+    "matplotlib>=3.10.1",
 ]
 
 [project.scripts]
@@ -69,6 +76,9 @@ test = [
     "pytest-html>=3.2.0",
     "pytest-benchmark>=4.0.0",
     "httpx>=0.24.0",
+    "pytest-xdist>=3.0.0",
+    "docling-parse>=4.0.0",
+    "PyMuPDF>=1.22.0",  # For direct page rendering
 ]
 lint = [
     "ruff>=0.0.270",

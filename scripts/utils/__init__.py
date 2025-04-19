@@ -9,6 +9,7 @@ import os
 import sys
 from pathlib import Path
 
+
 def add_src_to_path():
     """Add the src directory to Python path to enable imports from the package."""
     # Get the project root directory (2 levels up from this file)

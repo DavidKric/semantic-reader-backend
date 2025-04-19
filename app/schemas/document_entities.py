@@ -5,8 +5,9 @@ These schemas define the data structures for document entities in API requests a
 """
 
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Optional
+
+from pydantic import Field
 
 from app.schemas.base import BaseSchema
 

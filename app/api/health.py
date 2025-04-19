@@ -6,10 +6,11 @@ for monitoring and status verification.
 """
 
 import logging
+
 from fastapi import APIRouter, status
 
-from app.models import HealthResponse, VersionResponse
 from app.config import settings
+from app.models import HealthResponse, VersionResponse
 
 logger = logging.getLogger(__name__)
 

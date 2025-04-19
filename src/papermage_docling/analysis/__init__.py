@@ -6,9 +6,9 @@ document formats, and conversion points to guide refactoring and development.
 """
 
 from .document_conversion_map import (
-    create_conversion_map,
+    ConversionPoint,
     DocumentConversionMap,
-    ConversionPoint
+    create_conversion_map,
 )
 
 __all__ = [

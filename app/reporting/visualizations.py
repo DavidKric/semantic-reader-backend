@@ -5,14 +5,13 @@ This module provides functions for generating visualizations of document
 components (layout, text blocks, tables, figures) for inclusion in HTML reports.
 """
 
-import os
-import io
 import base64
-import numpy as np
-import matplotlib.pyplot as plt
+import io
+from typing import Any, Dict, Optional, Tuple
+
 import matplotlib.patches as patches
-from matplotlib.figure import Figure
-from typing import Dict, Any, List, Optional, Tuple, Union
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def create_layout_visualization(page: Dict[str, Any], 

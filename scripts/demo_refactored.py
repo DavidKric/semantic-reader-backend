@@ -4,11 +4,9 @@ Demo script for the refactored Docling-native implementation.
 This script demonstrates the use of the new converter to process a document.
 """
 
-import os
-import sys
 import json
+import sys
 from pathlib import Path
-from pprint import pprint
 
 # Add the src directory to Python path
 src_path = Path(__file__).resolve().parents[1] / "src"
@@ -69,7 +67,7 @@ def demo_converter(pdf_path=None):
         print("✅ Successfully converted document with Docling")
         
         # Print basic information about the document
-        print(f"\nDocument Information:")
+        print("\nDocument Information:")
         print(f"- Number of pages: {len(result.get('pages', []))}")
         
         # Check if tables and figures were detected
@@ -81,7 +79,7 @@ def demo_converter(pdf_path=None):
         
         # Print metadata if available
         if 'metadata' in result:
-            print(f"\nMetadata:")
+            print("\nMetadata:")
             for key, value in result['metadata'].items():
                 print(f"- {key}: {value}")
         

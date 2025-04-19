@@ -1,0 +1,258 @@
+{
+  "pages": [
+    {
+      "width": 612,
+      "height": 792,
+      "number": 1,
+      "blocks": [
+        {
+          "x0": 50.0,
+          "y0": 50.0,
+          "x1": 183.67103801203103,
+          "y1": 77.23923983338986,
+          "text": "This is text block 1. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 306.0,
+          "y0": 50.0,
+          "x1": 484.44601670058995,
+          "y1": 86.6297508440861,
+          "text": "This is text block 2. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 50.0,
+          "y0": 280.66666666666663,
+          "x1": 347.9486519312903,
+          "y1": 305.5296112418275,
+          "text": "This is text block 3. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 306.0,
+          "y0": 280.66666666666663,
+          "x1": 452.2820544686639,
+          "y1": 302.1649841157084,
+          "text": "This is text block 4. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 50.0,
+          "y0": 511.3333333333333,
+          "x1": 291.08965196891205,
+          "y1": 540.4023633871516,
+          "text": "This is text block 5. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 306.0,
+          "y0": 511.3333333333333,
+          "x1": 581.7983881263178,
+          "y1": 538.9410834896076,
+          "text": "This is text block 6. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 50.46386872767963,
+          "y0": 585.5516348267266,
+          "x1": 300.80277820274125,
+          "y1": 608.5343492775513,
+          "text": "This is text block 7. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 67.66210406968004,
+          "y0": 113.99399539473134,
+          "x1": 179.31206676952053,
+          "y1": 140.85357086750707,
+          "text": "This is text block 8. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 123.89966975489973,
+          "y0": 641.0445361230175,
+          "x1": 306.1354722383211,
+          "y1": 663.2165502848267,
+          "text": "This is text block 9. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 208.63444795676784,
+          "y0": 326.3830880095134,
+          "x1": 505.73427190496454,
+          "y1": 355.8305281943661,
+          "text": "This is text block 10. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 77.78313621726527,
+          "y0": 423.1583662847636,
+          "x1": 335.78594456645675,
+          "y1": 451.8377321820763,
+          "text": "This is text block 11. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 230.19586349658297,
+          "y0": 187.23760863855225,
+          "x1": 522.3575587000422,
+          "y1": 211.51172885960878,
+          "text": "This is text block 12. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 205.2384668335732,
+          "y0": 336.86009589807435,
+          "x1": 479.0179866877172,
+          "y1": 362.7140300604768,
+          "text": "This is text block 13. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        }
+      ],
+      "tables": [],
+      "figures": []
+    },
+    {
+      "width": 612,
+      "height": 792,
+      "number": 2,
+      "blocks": [
+        {
+          "x0": 50.0,
+          "y0": 50.0,
+          "x1": 349.56564994619924,
+          "y1": 76.2096571125125,
+          "text": "This is text block 1. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 306.0,
+          "y0": 50.0,
+          "x1": 412.3133550179408,
+          "y1": 84.29997470752988,
+          "text": "This is text block 2. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 50.0,
+          "y0": 280.66666666666663,
+          "x1": 343.2115411054191,
+          "y1": 304.7631139655859,
+          "text": "This is text block 3. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 306.0,
+          "y0": 280.66666666666663,
+          "x1": 485.3381451932936,
+          "y1": 306.9798284198122,
+          "text": "This is text block 4. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 50.0,
+          "y0": 511.3333333333333,
+          "x1": 346.8120781527337,
+          "y1": 546.0090323774681,
+          "text": "This is text block 5. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 306.0,
+          "y0": 511.3333333333333,
+          "x1": 416.9991255302468,
+          "y1": 534.4067167391551,
+          "text": "This is text block 6. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 60.05638629662581,
+          "y0": 349.3556405473606,
+          "x1": 227.69337724520548,
+          "y1": 385.2442042984064,
+          "text": "This is text block 7. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 243.28361052534743,
+          "y0": 659.0313269416248,
+          "x1": 459.4797015958001,
+          "y1": 694.0343076812687,
+          "text": "This is text block 8. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        },
+        {
+          "x0": 111.13265513231954,
+          "y0": 212.3835916947946,
+          "x1": 350.1753657792821,
+          "y1": 247.57625724726904,
+          "text": "This is text block 9. It contains sample text for testing.",
+          "font": "Arial",
+          "font_size": 12.0,
+          "confidence": 0.99
+        }
+      ],
+      "tables": [],
+      "figures": []
+    }
+  ],
+  "metadata": {
+    "title": "Sample3 Scanned",
+    "author": "Test Author",
+    "creator": "PDF Test Generator",
+    "producer": "Python Test Script",
+    "subject": "Test Document",
+    "keywords": [
+      "test",
+      "pdf",
+      "synthetic"
+    ],
+    "created": "2023-06-15T12:00:00Z",
+    "modified": "2023-06-15T12:00:00Z",
+    "pages": 2
+  },
+  "version": "1.0.0"
+}

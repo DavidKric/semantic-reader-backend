@@ -4,12 +4,9 @@ Test script to compare the new Docling-based converter with the legacy pipeline.
 This script verifies that the output format remains consistent during the refactoring.
 """
 
-import os
-import sys
 import json
-import difflib
+import sys
 from pathlib import Path
-from pprint import pprint
 
 # Add the src directory to Python path
 src_path = Path(__file__).resolve().parents[2] / "src"

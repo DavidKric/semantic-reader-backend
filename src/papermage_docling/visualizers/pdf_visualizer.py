@@ -10,13 +10,13 @@ import argparse
 import logging
 import os
 from pathlib import Path
-from typing import List, Optional, Union, Literal
+from typing import Literal, Optional, Union
 
 # Import Docling document structures
 try:
-    from docling.document_converter import DocumentConverter
-    from docling.datamodel.document import DoclingDocument 
     from docling.backend.docling_parse_v4_backend import SegmentedPdfPage, TextCellUnit
+    from docling.datamodel.document import DoclingDocument
+    from docling.document_converter import DocumentConverter
     DOCLING_AVAILABLE = True
 except ImportError:
     logging.warning("Docling dependencies not found. Visualization functionality will be limited.")

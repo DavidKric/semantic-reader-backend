@@ -6,7 +6,7 @@ This module provides functions for setting up and configuring logging.
 
 import logging
 import sys
-from typing import Dict, Any
+from typing import Any, Dict
 
 from app.core.config import settings
 

@@ -6,31 +6,31 @@ serialization/deserialization, and OpenAPI documentation.
 """
 
 # Import schemas here to make them available from the schemas package
-from app.schemas.base import BaseSchema, PaginationParams, PaginatedResponse
-from app.schemas.health import HealthResponse, DetailedHealthResponse, VersionResponse
-from app.schemas.documents import (
-    DocumentResponse,
-    PaperMageResponse,
-    DocumentListResponse,
-    ProcessDocumentRequest,
-    DocumentProcessingOptions
-)
+from app.schemas.base import BaseSchema, PaginatedResponse, PaginationParams
 from app.schemas.document_entities import (
     BoundingBox,
-    TextBlock,
-    Word,
+    DocumentSchema,
+    FigureAnalysisResult,
+    FigureSchema,
+    LanguageAnalysisResult,
     Line,
+    PageSchema,
     ParagraphSchema,
     SectionSchema,
-    FigureSchema,
-    TableSchema,
-    PageSchema,
-    DocumentSchema,
     StructureAnalysisResult,
-    LanguageAnalysisResult,
     TableAnalysisResult,
-    FigureAnalysisResult
+    TableSchema,
+    TextBlock,
+    Word,
 )
+from app.schemas.documents import (
+    DocumentListResponse,
+    DocumentProcessingOptions,
+    DocumentResponse,
+    PaperMageResponse,
+    ProcessDocumentRequest,
+)
+from app.schemas.health import DetailedHealthResponse, HealthResponse, VersionResponse
 
 __all__ = [
     # Base schemas

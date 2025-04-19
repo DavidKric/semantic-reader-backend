@@ -4,10 +4,10 @@ Document-related schemas for request/response validation.
 This module contains Pydantic models for document processing endpoints.
 """
 
-from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict
 
 from app.schemas.base import BaseSchema
 from app.schemas.document_entities import PageSchema, SectionSchema

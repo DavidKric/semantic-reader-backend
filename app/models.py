@@ -5,11 +5,12 @@ This module defines the data models used for API request validation
 and response serialization using Pydantic.
 """
 
-import uuid
 import re
-from typing import Dict, List, Optional, Any, Union, Literal
+import uuid
 from datetime import datetime
-from pydantic import BaseModel, Field, HttpUrl, validator
+from typing import Any, Dict, List, Literal, Optional, Union
+
+from pydantic import BaseModel, Field, validator
 
 # Health and Version Endpoints Models
 

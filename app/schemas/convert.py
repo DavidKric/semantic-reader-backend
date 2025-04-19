@@ -1,5 +1,7 @@
-from typing import List, Dict, Optional, Any
+from typing import Any, Dict, Optional
+
 from pydantic import BaseModel, Field, HttpUrl
+
 
 class ConvertURLRequest(BaseModel):
     url: HttpUrl = Field(..., description="URL of the document to convert")

@@ -5,22 +5,31 @@ This module provides endpoints for converting documents from various formats
 to structured data, with support for both URL and file upload inputs.
 """
 
-import logging
 import json
+import logging
 import uuid
-from typing import List, Optional, Dict, Any
+from typing import Optional
 
-from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks, HTTPException, Depends, status
-from fastapi.responses import JSONResponse
-
-from app.schemas.convert import (
-    ConvertURLRequest, ConvertResponse, JobStatusResponse,
-    ConversionOptions, DocumentResult
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    status,
 )
-from app.pipelines import document_processor, job_store
+
 from app.dependencies.services import get_document_service
+from app.pipelines import document_processor, job_store
+from app.schemas.convert import (
+    ConversionOptions,
+    ConvertResponse,
+    ConvertURLRequest,
+    JobStatusResponse,
+)
 from app.services.document_processing_service import DocumentProcessingService
-from app.config import settings
 
 logger = logging.getLogger(__name__)
 

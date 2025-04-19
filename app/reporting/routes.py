@@ -1,20 +1,19 @@
 """
 API routes for report generation and management.
 """
-import os
-from typing import List, Optional
-from datetime import datetime
 import logging
+import os
+from datetime import datetime
+from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.database import get_db
-from app.core.dependencies import get_document_service
-from app.services.document_service import DocumentService
-from app.reporting.service import get_report_service, ReportService
+from app.dependencies.services import get_document_service
+from app.reporting.service import ReportService, get_report_service
+from app.services.document_processing_service import DocumentProcessingService
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +26,7 @@ async def generate_report(
     include_tables: bool = Query(True, description="Include tables in report"),
     include_figures: bool = Query(True, description="Include figures in report"),
     db: Session = Depends(get_db),
-    document_service: DocumentService = Depends(get_document_service),
+    document_service: DocumentProcessingService = Depends(get_document_service),
     report_service: ReportService = Depends(get_report_service)
 ):
     """
@@ -101,7 +100,7 @@ async def get_document_report(
     include_tables: bool = Query(True, description="Include tables in report"),
     include_figures: bool = Query(True, description="Include figures in report"),
     db: Session = Depends(get_db),
-    document_service: DocumentService = Depends(get_document_service),
+    document_service: DocumentProcessingService = Depends(get_document_service),
     report_service: ReportService = Depends(get_report_service)
 ):
     """

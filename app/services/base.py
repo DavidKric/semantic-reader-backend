@@ -6,12 +6,12 @@ providing common functionality for database access and other operations.
 """
 
 import logging
+from datetime import datetime
 from typing import Any, Generic, List, Optional, Type, TypeVar
 
 from sqlalchemy.orm import Session
 
 from app.models.base import BaseModel
-
 
 # Define generic type variables for model and ID
 T = TypeVar('T', bound=BaseModel)
@@ -93,6 +93,9 @@ class BaseService(Generic[T, ID]):
         
         for key, value in data.items():
             setattr(db_obj, key, value)
+            
+        # Update the updated_at timestamp
+        db_obj.updated_at = datetime.utcnow()
             
         self.db.commit()
         self.db.refresh(db_obj)

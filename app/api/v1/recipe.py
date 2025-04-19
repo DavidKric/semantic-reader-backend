@@ -5,22 +5,30 @@ This module provides endpoints for processing documents using the PaperMage-comp
 recipe API, which mimics the CoreRecipe functionality from PaperMage.
 """
 
-import logging
 import json
-import uuid
-import tempfile
+import logging
 import os
-from typing import Optional, Dict, Any
+import tempfile
+import uuid
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks, HTTPException, Depends, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel, Field
 
-from papermage_docling.recipe import CoreRecipe
-from app.models import JobStatusResponse, ConversionOptions
-from app.pipelines import job_store
-from app.config import settings
 from app.dependencies.services import get_document_service
+from app.models import ConversionOptions
+from app.pipelines import job_store
 from app.services.document_processing_service import DocumentProcessingService
+from papermage_docling.recipe import CoreRecipe
 
 logger = logging.getLogger(__name__)
 

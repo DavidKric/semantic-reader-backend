@@ -5,10 +5,9 @@ This module provides a base model class that all other models can inherit from,
 providing common fields like id, created_at, updated_at, and shared functionality.
 """
 
-import datetime
 from typing import Any, Dict
 
-from sqlalchemy import Column, DateTime, func, Integer
+from sqlalchemy import Column, DateTime, Integer, func
 from sqlalchemy.ext.declarative import declared_attr
 
 from app.core.database import Base

@@ -7,11 +7,9 @@ layout analysis, OCR text, tables, and figures through a browser interface.
 """
 
 import os
-import json
-import base64
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 # Define template directory and paths
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -88,6 +86,9 @@ class HTMLReportGenerator:
             else:
                 title = f"Document Analysis Report ({len(documents)} documents)"
         
+        # Always append the report suffix for consistency with tests
+        page_title = f"{title} - Document Analysis Report"
+        
         # Generate report sections
         css = self._get_css()
         js = self._get_js()
@@ -98,7 +99,7 @@ class HTMLReportGenerator:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
+    <title>{page_title}</title>
     <style>{css}</style>
 </head>
 <body>
@@ -111,7 +112,7 @@ class HTMLReportGenerator:
             </div>
         </header>
         
-        {self._generate_report_overview(documents)}
+        {self._generate_report_overview(documents, include_tables, include_figures)}
         
         {self._generate_documents_section(documents, include_tables, include_figures)}
         
@@ -124,9 +125,17 @@ class HTMLReportGenerator:
 </body>
 </html>"""
         
+        # Save to disk if output_dir is set
+        if self.output_dir:
+            # Use the first document's id for the filename
+            doc_id = documents[0].get("id", "report")
+            report_path = self.output_dir / f"report_{doc_id}.html"
+            with open(report_path, "w", encoding="utf-8") as f:
+                f.write(html)
+        
         return html
     
-    def _generate_report_overview(self, documents: List[Dict[str, Any]]) -> str:
+    def _generate_report_overview(self, documents: List[Dict[str, Any]], include_tables: bool, include_figures: bool) -> str:
         """Generate an overview section for multiple documents."""
         overview_html = "<section class='overview-section'>\n"
         overview_html += "<h2>Report Overview</h2>\n"
@@ -140,11 +149,18 @@ class HTMLReportGenerator:
         for doc in documents:
             pages = doc.get("pages", [])
             total_pages += len(pages)
-            
             for page in pages:
-                total_blocks += len(page.get("text_blocks", page.get("blocks", [])))
-                total_tables += len(page.get("tables", [])) if include_tables else 0
-                total_figures += len(page.get("figures", [])) if include_figures else 0
+                # Always prefer 'text_blocks' if present, else fallback to 'blocks'
+                if "text_blocks" in page:
+                    total_blocks += len(page["text_blocks"])
+                elif "blocks" in page:
+                    total_blocks += len(page["blocks"])
+                else:
+                    total_blocks += 0
+                if include_tables:
+                    total_tables += len(page.get("tables", []))
+                if include_figures:
+                    total_figures += len(page.get("figures", []))
         
         # Display stats
         overview_html += "<div class='stats-container'>\n"
@@ -217,7 +233,7 @@ class HTMLReportGenerator:
             documents_html += self._generate_metadata_section(metadata)
             
             # Document overview
-            documents_html += self._generate_overview_section(doc)
+            documents_html += self._generate_overview_section(doc, include_tables, include_figures)
             
             # Document pages
             documents_html += self._generate_pages_section(pages, include_tables and include_figures)
@@ -271,7 +287,7 @@ class HTMLReportGenerator:
         
         return metadata_html
     
-    def _generate_overview_section(self, document_result: Dict[str, Any]) -> str:
+    def _generate_overview_section(self, document_result: Dict[str, Any], include_tables: bool, include_figures: bool) -> str:
         """Generate the document overview section."""
         pages = document_result.get("pages", [])
         
@@ -281,9 +297,17 @@ class HTMLReportGenerator:
         total_figures = 0
         
         for page in pages:
-            total_blocks += len(page.get("text_blocks", page.get("blocks", [])))
-            total_tables += len(page.get("tables", []))
-            total_figures += len(page.get("figures", []))
+            # Always prefer 'text_blocks' if present, else fallback to 'blocks'
+            if "text_blocks" in page:
+                total_blocks += len(page["text_blocks"])
+            elif "blocks" in page:
+                total_blocks += len(page["blocks"])
+            else:
+                total_blocks += 0
+            if include_tables:
+                total_tables += len(page.get("tables", []))
+            if include_figures:
+                total_figures += len(page.get("figures", []))
         
         overview_html = "<section class='overview-section'>\n"
         overview_html += "<h2>Document Overview</h2>\n"
@@ -488,7 +512,7 @@ class HTMLReportGenerator:
             cols = table.get("cols", 0)
             cells = table.get("cells", [])
             
-            vis_html += f"<div class='extracted-table'>\n"
+            vis_html += "<div class='extracted-table'>\n"
             vis_html += f"<div class='table-header'>Table {i+1} ({rows} x {cols})</div>\n"
             
             # Create HTML table representation

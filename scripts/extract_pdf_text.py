@@ -7,11 +7,11 @@ with support for RTL text and language detection.
 """
 
 import argparse
+import json
 import logging
 import os
-import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Add the src directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -153,7 +153,7 @@ def extract_pdf_text(args):
             logging.info(f"Extracted text data saved to {args.output}")
             
             # Print summary
-            logging.info(f"Document summary:")
+            logging.info("Document summary:")
             logging.info(f"- Pages: {len(result['pages'])}")
             logging.info(f"- Text length: {len(result['text'])} characters")
             if "language_name" in result["metadata"]:

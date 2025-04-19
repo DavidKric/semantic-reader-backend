@@ -5,10 +5,8 @@ This module loads settings from environment variables and provides them
 as a single importable settings object.
 """
 
-import os
 from typing import List
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

@@ -5,4 +5,4 @@ This package contains the command-line tools for converting between
 Docling document formats and PaperMage JSON format.
 """
 
-from .converter_cli import main as converter_main 
+from .converter_cli import main as converter_main

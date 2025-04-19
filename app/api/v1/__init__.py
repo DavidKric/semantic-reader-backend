@@ -7,7 +7,8 @@ This module defines the v1 API router and includes all the v1 API endpoints.
 from fastapi import APIRouter
 
 # Import all v1 route modules here
-from app.api.v1 import health, documents, pipelines, analysis, convert
+from app.api.v1 import analysis, convert, documents, health, pipelines
+
 # Add other route modules as needed: from app.api.v1 import users, items
 
 # Create the v1 router

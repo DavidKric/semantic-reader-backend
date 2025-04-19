@@ -7,25 +7,30 @@ Docling document processing pipeline.
 """
 
 import logging
-import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Query, status, Path
-from fastapi.responses import JSONResponse
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Path,
+    Query,
+    UploadFile,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_db
 from app.core.config import settings
 from app.dependencies.services import get_document_service
-from app.services.document_processing_service import DocumentProcessingService
 from app.schemas.documents import (
-    DocumentResponse,
-    PaperMageResponse,
     DocumentListResponse,
-    ProcessDocumentRequest,
-    DocumentProcessingOptions
+    DocumentProcessingOptions,
+    DocumentResponse,
 )
-from app.api.deps import get_db
+from app.services.document_processing_service import DocumentProcessingService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

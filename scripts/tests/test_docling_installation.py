@@ -4,7 +4,6 @@ Test script to verify that Docling is correctly installed and working.
 This script will attempt to use Docling's basic functionality to parse a sample PDF.
 """
 
-import os
 import sys
 from pathlib import Path
 

@@ -7,12 +7,25 @@ Docling now handles these features internally through its DocumentConverter API.
 This module will be removed in a future version.
 """
 
-import warnings
 import importlib.util
+import logging
+import warnings
 from typing import Any, Dict, List, Optional, Union
 
-# Check if docling is available
-docling_available = importlib.util.find_spec("docling") is not None
+from .base import BasePredictor
+from .figure import FigurePredictor
+from .language import LanguagePredictor
+from .layout import LayoutPredictor
+from .structure import StructurePredictor
+from .table import TablePredictor
+
+try:
+    from papermage_docling.converter import convert_document
+    DOCLING_AVAILABLE = True
+except ImportError:
+    DOCLING_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
 
 # Display a module-level deprecation warning
 warnings.warn(
@@ -56,7 +69,14 @@ class FigurePredictor(BasePredictor):
     DEPRECATED: This class is maintained only for backward compatibility.
     Docling now handles figure detection internally.
     """
-    pass
+    name = "figures"
+    description = "Detects figures in documents using Docling."
+
+    def analyze(self, document_path: str, **kwargs) -> Any:
+        if not DOCLING_AVAILABLE:
+            raise RuntimeError("Docling not available for figure analysis.")
+        result = convert_document(document_path, options={"figures": True})
+        return result.get("figures", {})
 
 # For compatibility with code that imports TablePredictor
 class TablePredictor(BasePredictor):
@@ -66,7 +86,14 @@ class TablePredictor(BasePredictor):
     DEPRECATED: This class is maintained only for backward compatibility.
     Docling now handles table detection internally.
     """
-    pass
+    name = "tables"
+    description = "Detects tables in documents using Docling."
+
+    def analyze(self, document_path: str, include_data: bool = False, **kwargs) -> Any:
+        if not DOCLING_AVAILABLE:
+            raise RuntimeError("Docling not available for table analysis.")
+        result = convert_document(document_path, options={"tables": True, "include_data": include_data})
+        return result.get("tables", {})
 
 # For compatibility with code that imports LanguagePredictor
 class LanguagePredictor(BasePredictor):
@@ -76,7 +103,15 @@ class LanguagePredictor(BasePredictor):
     DEPRECATED: This class is maintained only for backward compatibility.
     Docling now handles language detection internally.
     """
-    pass
+    name = "language"
+    description = "Predicts document language using Docling."
+
+    def analyze(self, document_path: str, min_confidence: float = 0.2, **kwargs) -> Any:
+        if not DOCLING_AVAILABLE:
+            raise RuntimeError("Docling not available for language analysis.")
+        result = convert_document(document_path, options={"language": True, "min_confidence": min_confidence})
+        # Extract language info from result (customize as needed)
+        return result.get("language", {})
 
 # For compatibility with code that imports StructurePredictor
 class StructurePredictor(BasePredictor):
@@ -86,7 +121,14 @@ class StructurePredictor(BasePredictor):
     DEPRECATED: This class is maintained only for backward compatibility.
     Docling now handles document structure analysis internally.
     """
-    pass
+    name = "structure"
+    description = "Analyzes document structure (sections, paragraphs, etc.) using Docling."
+
+    def analyze(self, document_path: str, detailed: bool = False, **kwargs) -> Any:
+        if not DOCLING_AVAILABLE:
+            raise RuntimeError("Docling not available for structure analysis.")
+        result = convert_document(document_path, options={"structure": True, "detailed": detailed})
+        return result.get("structure", {})
 
 # For compatibility with code that imports the factories
 def get_figure_predictor(*args, **kwargs):
@@ -137,7 +179,7 @@ def is_rtl(text: str) -> bool:
         True if text is primarily RTL, False otherwise
     """
     # Use docling's RTL detection if available
-    if docling_available:
+    if DOCLING_AVAILABLE:
         try:
             from docling.utils.rtl import is_rtl_text
             return is_rtl_text(text)
@@ -354,37 +396,12 @@ def detect_language(text: str) -> str:
 
 # Export names for backward compatibility
 __all__ = [
-    # RTL utilities
-    'is_rtl',
-    'is_rtl_char',
-    'get_text_direction',
-    'reorder_text',
-    'reorder_words',
-    'process_rtl_paragraph',
-    'process_mixed_text',
-    'normalize_rtl_text',
-    'detect_and_mark_rtl',
-    
-    # Language prediction
-    'LanguagePredictor',
-    'is_rtl_language',
-    'get_language_name',
-    'detect_language',
-    'get_language_predictor',
-    
-    # Structure prediction
-    'StructurePredictor',
-    'get_structure_predictor',
-    
-    # Figure prediction
-    'FigurePredictor',
-    'FigureItem',
-    'get_figure_predictor',
-    
-    # Table prediction
-    'TablePredictor',
-    'TableItem',
-    'get_table_predictor',
+    "BasePredictor",
+    "LanguagePredictor",
+    "StructurePredictor",
+    "TablePredictor",
+    "FigurePredictor",
+    "LayoutPredictor",
 ]
 
 # Compatibility items
@@ -395,3 +412,21 @@ class FigureItem:
 class TableItem:
     """Compatibility stub for TableItem."""
     pass
+
+class LayoutPredictor(BasePredictor):
+    name = "layout"
+    description = "Analyzes document layout using Docling."
+
+    def analyze(self, document_path: str, **kwargs) -> Any:
+        if not DOCLING_AVAILABLE:
+            raise RuntimeError("Docling not available for layout analysis.")
+        result = convert_document(document_path, options={"layout": True})
+        return result.get("layout", {})
+
+# Plugin extension example:
+# class MyCustomPredictor(BasePredictor):
+#     name = "my_custom"
+#     description = "My custom analysis predictor."
+#     def analyze(self, document_path: str, **kwargs):
+#         # Custom logic
+#         return {}

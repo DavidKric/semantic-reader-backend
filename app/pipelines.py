@@ -5,21 +5,19 @@ This module provides the core document processing functionality,
 handling the conversion of documents from various formats to structured data.
 """
 
-import os
-import uuid
 import logging
 import tempfile
 import time
-import asyncio
-from typing import Dict, List, Any, Optional, Union, BinaryIO
-from pathlib import Path
+import uuid
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import aiohttp
-from fastapi import UploadFile, HTTPException
+from fastapi import HTTPException, UploadFile
 
-from papermage_docling.converter import convert_document
 from app.config import settings
+from papermage_docling.converter import convert_document
 
 logger = logging.getLogger(__name__)
 

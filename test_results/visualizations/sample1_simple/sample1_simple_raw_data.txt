@@ -1,0 +1,8 @@
+Document: tests/data/data/sample1_simple.pdf
+
+Pages: 1
+
+Page 1:
+  Words: 0
+  Lines: 0
+

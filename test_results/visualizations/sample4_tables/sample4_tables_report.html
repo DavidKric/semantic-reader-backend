@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Analysis: sample4_tables</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .document-info {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .metadata-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .metadata-table th, .metadata-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .metadata-table th {
+            background-color: #f2f2f2;
+        }
+        .visualization-container {
+            margin-bottom: 30px;
+        }
+        .page-container {
+            margin-bottom: 20px;
+            border: 1px solid #e3e3e3;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .page-header {
+            background-color: #f2f2f2;
+            padding: 10px;
+            border-bottom: 1px solid #e3e3e3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .page-header h3 {
+            margin: 0;
+        }
+        .toggle-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .visualization-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-gap: 10px;
+            padding: 10px;
+        }
+        @media (max-width: 768px) {
+            .visualization-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .visualization-item {
+            border: 1px solid #e3e3e3;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .visualization-title {
+            background-color: #f8f9fa;
+            padding: 5px 10px;
+            border-bottom: 1px solid #e3e3e3;
+            font-weight: bold;
+        }
+        .visualization-image {
+            padding: 10px;
+            text-align: center;
+        }
+        .visualization-image img {
+            max-width: 100%;
+            height: auto;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .missing-visualization {
+            padding: 20px;
+            text-align: center;
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 5px;
+        }
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .stat-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #2c3e50;
+        }
+        .stat-value {
+            font-size: 1.5em;
+            color: #007bff;
+        }
+        .raw-data-container {
+            margin-top: 20px;
+            border: 1px solid #e3e3e3;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .raw-data-header {
+            background-color: #f2f2f2;
+            padding: 10px;
+            border-bottom: 1px solid #e3e3e3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .raw-data-content {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: #f8f8f8;
+        }
+        .raw-data-content pre {
+            margin: 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 15px;
+        }
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            margin-right: 5px;
+            background-color: #f8f9fa;
+        }
+        .tab.active {
+            border-color: #ddd;
+            border-bottom-color: white;
+            background-color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .page-data-preview {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Document Analysis: sample4_tables</h1>
+    
+    <div class="document-info">
+        <h2>Document Information</h2>
+        <p><strong>Filename:</strong> sample4_tables.pdf</p>
+        <p><strong>Processing Date:</strong> 2025-04-19 20:36:18</p>
+        
+        
+        <h3>Metadata</h3>
+        <table class="metadata-table">
+            <thead>
+                <tr>
+                    <th>Property</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr>
+                    <td>filename</td>
+                    <td>sample4_tables.pdf</td>
+                </tr>
+                
+                <tr>
+                    <td>file_size</td>
+                    <td>163287</td>
+                </tr>
+                
+                <tr>
+                    <td>file_path</td>
+                    <td>tests/data/data/sample4_tables.pdf</td>
+                </tr>
+                
+            </tbody>
+        </table>
+        
+        
+        
+        <h3>Document Statistics</h3>
+        <div class="stats-container">
+            
+            
+            <div class="stat-card">
+                <div class="stat-title">processing_time</div>
+                <div class="stat-value">None</div>
+            </div>
+            
+            
+            
+            <div class="stat-card">
+                <div class="stat-title">page_count</div>
+                <div class="stat-value">0</div>
+            </div>
+            
+            
+            
+            <div class="stat-card">
+                <div class="stat-title">entity_counts</div>
+                <div class="stat-value">{}</div>
+            </div>
+            
+            
+            
+            <div class="stat-card">
+                <div class="stat-title">performance</div>
+                <div class="stat-value">{}</div>
+            </div>
+            
+            
+            
+            <div class="stat-card">
+                <div class="stat-title">file_info</div>
+                <div class="stat-value">{'size_bytes': 163287, 'size_mb': 0.16}</div>
+            </div>
+            
+            
+            
+            
+        </div>
+        
+        
+        
+        <div class="raw-data-container">
+            <div class="raw-data-header">
+                <h3>Raw Document Data</h3>
+                <button class="toggle-button" onclick="toggleRawData()">Show/Hide</button>
+            </div>
+            <div class="raw-data-content" id="raw-data" style="display: none;">
+                <div class="tabs">
+                    <div class="tab active" onclick="showTab('json-preview')">JSON Preview</div>
+                    <div class="tab" onclick="showTab('page-data')">Page Data</div>
+                    <div class="tab" onclick="showTab('raw-text')">Raw Text</div>
+                </div>
+                <div class="tab-content active" id="json-preview">
+                    <pre>{
+  "error": "cannot import name 'PaperMageDoclingConverter' from 'papermage_docling.converter' (/Users/newmacbookpro/Developmet workspace/semantic-reader-backend/src/papermage_docling/converter.py)",
+  "filename": "tests/data/data/sample4_tables.pdf",
+  "pages": [
+    {
+      "page_number": 1,
+      "word_count": 0,
+      "line_count": 0,
+      "error": "Failed to extract data"
+    }
+  ]
+}
+...</pre>
+                </div>
+                <div class="tab-content" id="page-data">
+                    <h4>Page Data (1 pages)</h4>
+                    
+                    <div>
+                        <h5>Page 1</h5>
+                        <p>Word count: 0 | Line count: 0</p>
+                        
+                        
+                    </div>
+                    
+                </div>
+                <div class="tab-content" id="raw-text">
+                    <pre>Document: tests/data/data/sample4_tables.pdf
+
+Pages: 1
+
+Page 1:
+  Words: 0
+  Lines: 0
+
+</pre>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+    
+    <div class="visualization-container">
+        <h2>Document Visualizations</h2>
+        
+        
+        <div class="page-container">
+            <div class="page-header">
+                <h3>Page 1</h3>
+                <button class="toggle-button" onclick="togglePage('page-1')">Show/Hide</button>
+            </div>
+            
+            <div class="visualization-grid" id="page-1">
+                <!-- Original Page -->
+                <div class="visualization-item">
+                    <div class="visualization-title">Original</div>
+                    <div class="visualization-image">
+                        
+                        <img src="test_results/visualizations/sample4_tables/sample4_tables.pdf.page_1.original.png" alt="Original page 1">
+                        
+                    </div>
+                </div>
+                
+                <!-- Character Level -->
+                <div class="visualization-item">
+                    <div class="visualization-title">Character Detection</div>
+                    <div class="visualization-image">
+                        
+                        <img src="test_results/visualizations/sample4_tables/sample4_tables.pdf.page_1.char.png" alt="Character visualization for page 1">
+                        
+                    </div>
+                </div>
+                
+                <!-- Word Level -->
+                <div class="visualization-item">
+                    <div class="visualization-title">Word Detection</div>
+                    <div class="visualization-image">
+                        
+                        <img src="test_results/visualizations/sample4_tables/sample4_tables.pdf.page_1.word.png" alt="Word visualization for page 1">
+                        
+                    </div>
+                </div>
+                
+                <!-- Line Level -->
+                <div class="visualization-item">
+                    <div class="visualization-title">Line Detection</div>
+                    <div class="visualization-image">
+                        
+                        <img src="test_results/visualizations/sample4_tables/sample4_tables.pdf.page_1.line.png" alt="Line visualization for page 1">
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="page-container">
+            <div class="page-header">
+                <h3>Page 2</h3>
+                <button class="toggle-button" onclick="togglePage('page-2')">Show/Hide</button>
+            </div>
+            
+            <div class="visualization-grid" id="page-2">
+                <!-- Original Page -->
+                <div class="visualization-item">
+                    <div class="visualization-title">Original</div>
+                    <div class="visualization-image">
+                        
+                        <img src="test_results/visualizations/sample4_tables/sample4_tables.pdf.page_2.original.png" alt="Original page 2">
+                        
+                    </div>
+                </div>
+                
+                <!-- Character Level -->
+                <div class="visualization-item">
+                    <div class="visualization-title">Character Detection</div>
+                    <div class="visualization-image">
+                        
+                        <img src="test_results/visualizations/sample4_tables/sample4_tables.pdf.page_2.char.png" alt="Character visualization for page 2">
+                        
+                    </div>
+                </div>
+                
+                <!-- Word Level -->
+                <div class="visualization-item">
+                    <div class="visualization-title">Word Detection</div>
+                    <div class="visualization-image">
+                        
+                        <img src="test_results/visualizations/sample4_tables/sample4_tables.pdf.page_2.word.png" alt="Word visualization for page 2">
+                        
+                    </div>
+                </div>
+                
+                <!-- Line Level -->
+                <div class="visualization-item">
+                    <div class="visualization-title">Line Detection</div>
+                    <div class="visualization-image">
+                        
+                        <img src="test_results/visualizations/sample4_tables/sample4_tables.pdf.page_2.line.png" alt="Line visualization for page 2">
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+    
+    <footer>
+        <p><small>Generated with PaperMage-Docling Visualization Tool</small></p>
+    </footer>
+    
+    <script>
+        // Toggle raw data visibility
+        function toggleRawData() {
+            const rawData = document.getElementById('raw-data');
+            if (rawData.style.display === 'none') {
+                rawData.style.display = 'block';
+            } else {
+                rawData.style.display = 'none';
+            }
+        }
+        
+        // Toggle page visibility
+        function togglePage(pageId) {
+            const page = document.getElementById(pageId);
+            if (page.style.display === 'none') {
+                page.style.display = 'grid';
+            } else {
+                page.style.display = 'none';
+            }
+        }
+        
+        // Tab switching
+        function showTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show the selected tab content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Add active class to the clicked tab
+            document.querySelector(`.tab[onclick="showTab('${tabId}')"]`).classList.add('active');
+        }
+    </script>
+</body>
+</html> 

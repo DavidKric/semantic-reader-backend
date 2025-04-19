@@ -9,10 +9,8 @@ instances to PaperMage-compatible Document formats, and saving the results to JS
 import argparse
 import json
 import logging
-import os
 import sys
-from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 # Set up logging
 logging.basicConfig(
@@ -24,14 +22,17 @@ logger = logging.getLogger("docling-converter")
 # Try to import Docling dependencies
 try:
     from docling_core.types import DoclingDocument
-    from docling_parse.pdf_parser import PdfDocument, DoclingPdfParser as DoclingPdfParserBase
+    from docling_parse.pdf_parser import DoclingPdfParser as DoclingPdfParserBase
+    from docling_parse.pdf_parser import PdfDocument
     HAS_DOCLING = True
 except ImportError:
     logger.warning("Docling dependencies not found. Limited functionality available.")
     HAS_DOCLING = False
 
 # Import our converter
-from papermage_docling.converters.docling_to_papermage_converter import DoclingToPaperMageConverter
+from papermage_docling.converters.docling_to_papermage_converter import (
+    DoclingToPaperMageConverter,
+)
 
 
 def save_json(data: Dict[str, Any], output_path: str) -> None:

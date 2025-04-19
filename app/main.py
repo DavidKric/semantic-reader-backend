@@ -10,18 +10,17 @@ import uuid
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI, Request, Response, HTTPException
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import api_router
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.utils.logging import configure_logging, log_request_details
 from app.reporting.service import init_reporting
-
+from app.utils.logging import configure_logging, log_request_details
 
 # Configure logging
 configure_logging()
@@ -62,7 +61,7 @@ async def lifespan(app: FastAPI):
         logger.info("Database connections closed")
 
 
-def create_application() -> FastAPI:
+def create_app() -> FastAPI:
     """
     Create and configure the FastAPI application.
     
@@ -74,7 +73,7 @@ def create_application() -> FastAPI:
         title=settings.APP_NAME,
         description="Semantic Reader Backend API",
         version=settings.APP_VERSION,
-        openapi_url=f"/openapi.json",
+        openapi_url="/openapi.json",
         docs_url="/docs",
         redoc_url="/redoc",
         lifespan=lifespan,
@@ -169,6 +168,10 @@ def create_application() -> FastAPI:
     # Include API router
     application.include_router(api_router, prefix="/api")
     
+    # Ensure reporting router is included
+    from app.reporting.routes import router as reporting_router
+    application.include_router(reporting_router, prefix="/api", tags=["reports"])
+    
     # Root endpoint
     @application.get("/", include_in_schema=False)
     async def root():
@@ -184,7 +187,7 @@ def create_application() -> FastAPI:
 
 
 # Create application instance
-app = create_application()
+app = create_app()
 
 
 # Entry point for uvicorn

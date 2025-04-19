@@ -9,7 +9,7 @@ import warnings
 from typing import Any, Dict, List, Optional
 
 # Import document models
-from .document import Box, Span, Entity, Document
+from .document import Box, Document, Entity, Span
 
 __all__ = ["Box", "Span", "Entity", "Document"]
 

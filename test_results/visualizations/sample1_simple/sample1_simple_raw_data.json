@@ -1,0 +1,12 @@
+{
+  "error": "cannot import name 'PaperMageDoclingConverter' from 'papermage_docling.converter' (/Users/newmacbookpro/Developmet workspace/semantic-reader-backend/src/papermage_docling/converter.py)",
+  "filename": "tests/data/data/sample1_simple.pdf",
+  "pages": [
+    {
+      "page_number": 1,
+      "word_count": 0,
+      "line_count": 0,
+      "error": "Failed to extract data"
+    }
+  ]
+}

@@ -6,14 +6,13 @@ This script processes the sample PDF files and generates new expected JSON outpu
 which can be used to update the golden files for snapshot tests.
 """
 
-import os
-import json
-import shutil
 import argparse
-from pathlib import Path
+import json
 
 # Add parent directory to Python path to import app modules
 import sys
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import the necessary modules

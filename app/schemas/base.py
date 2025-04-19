@@ -6,9 +6,9 @@ throughout the application for request/response validation.
 """
 
 from datetime import datetime
-from typing import Any, Dict, Generic, List, Optional, TypeVar, Union
+from typing import Generic, List, TypeVar
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class BaseSchema(BaseModel):

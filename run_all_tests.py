@@ -6,12 +6,10 @@ This script runs all the simple test scripts sequentially and reports
 overall success or failure.
 """
 
-import os
-import sys
 import subprocess
-from pathlib import Path
-import importlib.util
+import sys
 import time
+from pathlib import Path
 
 
 def check_dependencies():

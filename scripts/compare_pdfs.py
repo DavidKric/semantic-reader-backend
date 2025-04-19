@@ -7,13 +7,13 @@ useful for evaluating RTL detection and language detection capabilities.
 """
 
 import argparse
+import json
 import logging
 import os
-import json
-from pathlib import Path
 import sys
 import time
-from typing import Dict, List, Any
+from pathlib import Path
+from typing import Any, Dict
 
 # Add the src directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))

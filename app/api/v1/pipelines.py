@@ -6,9 +6,9 @@ configuration, and statistics.
 """
 
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, Body, Path, Query
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db

@@ -6,10 +6,9 @@ as a single importable settings object. Using pydantic_settings for type validat
 """
 
 import os
-from typing import List, Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from pydantic import Field, validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Define base directory

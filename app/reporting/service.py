@@ -1,10 +1,11 @@
 """
 Report service module for managing document report generation.
 """
-from fastapi import FastAPI
-from typing import List, Dict, Any, Optional
-import os
 import logging
+import os
+from typing import Any, Dict, List
+
+from fastapi import FastAPI
 
 from app.core.config import settings
 from app.reporting.html_generator import HTMLReportGenerator
@@ -15,10 +16,10 @@ class ReportService:
     """
     Service class for managing document reports.
     """
-    def __init__(self):
+    def __init__(self, output_dir: str = None):
         """Initialize the report service."""
-        self.html_generator = HTMLReportGenerator()
-        self.output_dir = settings.REPORT_OUTPUT_DIR
+        self.output_dir = output_dir or settings.REPORT_OUTPUT_DIR
+        self.html_generator = HTMLReportGenerator(output_dir=self.output_dir)
         
         # Ensure output directory exists
         os.makedirs(self.output_dir, exist_ok=True)
@@ -70,17 +71,14 @@ class ReportService:
         logger.info(f"Report saved to {output_path}")
         return output_path
 
-# Global instance for FastAPI dependency injection
-report_service = ReportService()
-
 def get_report_service() -> ReportService:
     """
     Dependency function to get the report service instance.
     
     Returns:
-        The global ReportService instance
+        A new ReportService instance
     """
-    return report_service
+    return ReportService()
 
 def init_reporting(app: FastAPI):
     """

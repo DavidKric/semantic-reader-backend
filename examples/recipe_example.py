@@ -6,10 +6,9 @@ This script shows how to use the CoreRecipe API for document processing,
 which provides a similar interface to PaperMage's CoreRecipe.
 """
 
+import json
 import os
 import sys
-import json
-from pprint import pprint
 
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))

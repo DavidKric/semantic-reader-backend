@@ -7,10 +7,10 @@ Docling's native document structures and PaperMage's format, and generates
 a comprehensive report to guide the refactoring process.
 """
 
+import argparse
+import logging
 import os
 import sys
-import logging
-import argparse
 from pathlib import Path
 
 # Add the project root to the Python path
@@ -19,6 +19,7 @@ sys.path.append(str(project_root))
 
 # Add the proper import path handling
 from . import add_src_to_path
+
 project_root, _ = add_src_to_path()
 
 from papermage_docling.analysis.document_conversion_map import create_conversion_map
@@ -53,7 +54,7 @@ def main():
     output_path = Path(args.output)
     os.makedirs(output_path.parent, exist_ok=True)
 
-    logger.info(f"Starting document conversion analysis...")
+    logger.info("Starting document conversion analysis...")
     report = create_conversion_map(
         project_root=str(project_root),
         output_file=str(output_path)

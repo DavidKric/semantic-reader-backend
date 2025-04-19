@@ -5,22 +5,22 @@ This file configures pytest for testing, including HTML report generation,
 custom markers, and global test fixtures.
 """
 
-import os
 import json
-import pytest
-import logging
-from pathlib import Path
+import os
+import shutil
 from datetime import datetime
+from pathlib import Path
+
+import pytest
+from app.core.database import Base, get_db
+from app.main import create_app
+from app.models.document import Document
+from app.services.document_processing_service import DocumentProcessingService
 from fastapi.testclient import TestClient
+from pytest_html import extras
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from pytest_html import extras
-
-from app.main import app
-from app.core.database import Base, get_db
-from app.services.document_processing_service import DocumentProcessingService
-from app.models.document import Document
 
 # Get the test configuration file
 CONFIG_FILE = Path(__file__).parent / "e2e_test_config.json"
@@ -28,11 +28,19 @@ CONFIG_FILE = Path(__file__).parent / "e2e_test_config.json"
 # Define test directories for easy access
 TEST_DIR = Path(__file__).parent
 TEST_DATA_DIR = TEST_DIR / "data"
-TEST_EXPECTED_DIR = TEST_DATA_DIR / "expected"
+TEST_FIXTURES_DIR = TEST_DATA_DIR / "fixtures"  # New directory for test fixtures
+TEST_SAMPLES_DIR = TEST_FIXTURES_DIR / "samples"  # Test sample files organized by type
+TEST_EXPECTED_DIR = TEST_FIXTURES_DIR / "expected"  # Expected outputs
+TEST_TEMP_DIR = TEST_DATA_DIR / "temp"  # Temporary files created during tests
+TEST_CACHE_DIR = TEST_DATA_DIR / "cache"  # Cache directories
 TEST_VISUALS_DIR = TEST_DIR / "visuals"
 
-# Ensure visuals directory exists
+# Ensure directories exist
 TEST_VISUALS_DIR.mkdir(exist_ok=True)
+TEST_FIXTURES_DIR.mkdir(exist_ok=True)
+TEST_SAMPLES_DIR.mkdir(exist_ok=True)
+TEST_EXPECTED_DIR.mkdir(exist_ok=True)
+TEST_TEMP_DIR.mkdir(exist_ok=True)
 
 def pytest_configure(config):
     """
@@ -65,6 +73,76 @@ def pytest_configure(config):
             if hasattr(config, 'option'):
                 config.option.htmlpath = str(report_path)
                 config.option.self_contained_html = True
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_data():
+    """
+    Set up the test data directory structure at the beginning of the test session.
+    This fixture runs automatically due to autouse=True.
+    """
+    # Create sample types directories
+    sample_types = ["simple", "complex", "rtl", "tables", "figures", "multi_column", "corrupt", "invalid"]
+    for sample_type in sample_types:
+        (TEST_SAMPLES_DIR / sample_type).mkdir(exist_ok=True)
+    
+    # Migrate existing sample files if needed
+    old_data_dir = TEST_DATA_DIR / "data"
+    if old_data_dir.exists():
+        # Move sample PDFs to appropriate directories
+        pdf_mapping = {
+            "sample1_simple.pdf": "simple",
+            "sample2_multicolumn.pdf": "multi_column",
+            "sample3_scanned.pdf": "complex",
+            "sample4_tables.pdf": "tables",
+            "sample5_figures.pdf": "figures",
+            "sample6_mixed.pdf": "complex",
+            "corrupt.pdf": "corrupt"
+        }
+        
+        for pdf_file, folder in pdf_mapping.items():
+            source = old_data_dir / pdf_file
+            if source.exists():
+                dest = TEST_SAMPLES_DIR / folder / pdf_file
+                if not dest.exists():
+                    shutil.copy(str(source), str(dest))
+        
+        # Move expected outputs
+        old_expected_dir = old_data_dir / "expected"
+        if old_expected_dir.exists() and old_expected_dir.is_dir():
+            for json_file in old_expected_dir.glob("*.json"):
+                dest = TEST_EXPECTED_DIR / json_file.name
+                if not dest.exists():
+                    shutil.copy(str(json_file), str(dest))
+    
+    # Also check and copy from the old documents directory
+    old_docs_dir = TEST_DATA_DIR / "documents"
+    if old_docs_dir.exists():
+        for category in ["simple", "complex", "rtl", "large"]:
+            old_category_dir = old_docs_dir / category
+            if old_category_dir.exists() and old_category_dir.is_dir():
+                for pdf_file in old_category_dir.glob("*.pdf"):
+                    dest = TEST_SAMPLES_DIR / category / pdf_file.name
+                    if not dest.exists():
+                        shutil.copy(str(pdf_file), str(dest))
+    
+    # Copy invalid text file
+    invalid_text = TEST_DATA_DIR / "invalid.txt"
+    if invalid_text.exists():
+        dest = TEST_SAMPLES_DIR / "invalid" / "invalid.txt"
+        if not dest.exists():
+            shutil.copy(str(invalid_text), str(dest))
+    
+    yield  # Allow tests to run
+    
+    # Clean up temporary files after all tests complete
+    for tmp_file in TEST_TEMP_DIR.glob("*"):
+        try:
+            if tmp_file.is_file():
+                tmp_file.unlink()
+            elif tmp_file.is_dir():
+                shutil.rmtree(tmp_file)
+        except Exception:
+            pass  # Ignore errors during cleanup
 
 def pytest_html_report_title(report):
     """
@@ -105,10 +183,17 @@ def test_config():
                 "confidence": 0.05
             },
             "test_data_paths": {
-                "simple": "test_data/documents/simple",
-                "complex": "test_data/documents/complex",
-                "rtl": "test_data/documents/rtl",
-                "large": "test_data/documents/large"
+                "simple": str(TEST_SAMPLES_DIR / "simple"),
+                "complex": str(TEST_SAMPLES_DIR / "complex"),
+                "rtl": str(TEST_SAMPLES_DIR / "rtl"),
+                "large": str(TEST_SAMPLES_DIR / "large"),
+                "tables": str(TEST_SAMPLES_DIR / "tables"),
+                "figures": str(TEST_SAMPLES_DIR / "figures"),
+                "multi_column": str(TEST_SAMPLES_DIR / "multi_column"),
+                "corrupt": str(TEST_SAMPLES_DIR / "corrupt"),
+                "invalid": str(TEST_SAMPLES_DIR / "invalid"),
+                "expected": str(TEST_EXPECTED_DIR),
+                "temp": str(TEST_TEMP_DIR)
             },
             "html_report": {
                 "enabled": True,
@@ -131,8 +216,8 @@ def setup_test_environment():
         original_env[key] = os.environ.get(key)
     
     # Set up testing environment variables
-    os.environ['PAPERMAGE_CACHE_DIR'] = str(Path(__file__).parent / "test_data" / "cache" / "papermage")
-    os.environ['PAPERMAGE_DOCLING_CACHE_DIR'] = str(Path(__file__).parent / "test_data" / "cache" / "papermage_docling")
+    os.environ['PAPERMAGE_CACHE_DIR'] = str(TEST_CACHE_DIR / "papermage")
+    os.environ['PAPERMAGE_DOCLING_CACHE_DIR'] = str(TEST_CACHE_DIR / "papermage_docling")
     
     # Create cache directories
     Path(os.environ['PAPERMAGE_CACHE_DIR']).mkdir(parents=True, exist_ok=True)
@@ -184,25 +269,19 @@ def test_db(test_db_engine):
     db.close()
 
 
-@pytest.fixture(scope="function")
-def client(test_db):
-    """Create a FastAPI test client with a test database."""
-    # Override the dependency to use the test database
+@pytest.fixture
+def client():
+    """Create a FastAPI test client with a dummy DB override."""
+    app = create_app()
+
     def override_get_db():
-        try:
-            yield test_db
-        finally:
-            pass
-    
+        class DummySession:
+            def close(self): pass
+        yield DummySession()
+
     app.dependency_overrides[get_db] = override_get_db
-    
-    # Create test client
-    test_client = TestClient(app)
-    
-    yield test_client
-    
-    # Clean up after tests
-    app.dependency_overrides = {}
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 @pytest.fixture
@@ -252,15 +331,14 @@ def sample_document(test_db):
 @pytest.fixture
 def sample_pdfs():
     """Returns a dictionary of sample PDF paths."""
-    # This will be populated when we add the actual PDFs
     return {
-        "simple": None,  # Will be TEST_DATA_DIR / "sample1_simple.pdf"
-        "multicolumn": None,
-        "scanned": None,
-        "tables": None,
-        "figures": None,
-        "mixed": None,
-        "corrupt": None,
+        "simple": TEST_SAMPLES_DIR / "simple" / "sample1_simple.pdf",
+        "multicolumn": TEST_SAMPLES_DIR / "multi_column" / "sample2_multicolumn.pdf",
+        "scanned": TEST_SAMPLES_DIR / "complex" / "sample3_scanned.pdf",
+        "tables": TEST_SAMPLES_DIR / "tables" / "sample4_tables.pdf",
+        "figures": TEST_SAMPLES_DIR / "figures" / "sample5_figures.pdf",
+        "mixed": TEST_SAMPLES_DIR / "complex" / "sample6_mixed.pdf",
+        "corrupt": TEST_SAMPLES_DIR / "corrupt" / "corrupt.pdf",
     }
 
 @pytest.fixture
@@ -271,6 +349,11 @@ def expected_outputs():
         with open(json_file, "r") as f:
             expected[json_file.stem] = json.load(f)
     return expected
+
+@pytest.fixture
+def temp_dir():
+    """Returns the temporary directory path for test file operations."""
+    return TEST_TEMP_DIR
 
 @pytest.fixture
 def attach_visual(request):
@@ -334,7 +417,7 @@ def compare_json():
                 return sorted(actual) == sorted(expected)
             
             # For lists of objects, compare each pair
-            for a_item, e_item in zip(actual, expected):
+            for a_item, e_item in zip(actual, expected, strict=False):
                 if not _compare(a_item, e_item, ignore_keys):
                     return False
             

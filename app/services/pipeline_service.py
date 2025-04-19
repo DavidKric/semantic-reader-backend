@@ -6,7 +6,7 @@ After the Docling refactoring, most pipeline functionality is now directly handl
 """
 
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 

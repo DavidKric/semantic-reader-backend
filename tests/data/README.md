@@ -1,54 +1,82 @@
-# Test Data for Semantic-Reader-Backend
+# Test Data Directory Structure
 
-This directory contains sample PDF files and expected outputs for testing the document processing pipeline.
+This directory contains test data organized according to pytest best practices. The structure is designed to be predictable, maintainable, and scalable.
 
-## Sample PDF Files
+## Directory Structure
 
-The following sample PDF files cover different test cases:
-
-- `sample1_simple.pdf`: A simple text-only PDF file for basic text extraction testing.
-- `sample2_multicolumn.pdf`: A multi-column PDF (academic paper) for testing reading order and layout analysis.
-- `sample3_scanned.pdf`: A scanned PDF for testing OCR text extraction.
-- `sample4_tables.pdf`: A PDF with tables for testing table detection and structure extraction.
-- `sample5_figures.pdf`: A PDF with figures for testing figure detection and extraction.
-- `sample6_mixed.pdf`: A complex PDF with mixed content (text, tables, figures) for integration testing.
-- `corrupt.pdf`: An intentionally corrupted PDF for testing error handling.
-
-## Expected Outputs
-
-The `expected/` directory contains JSON files corresponding to each sample PDF. These files represent the expected output from processing the PDFs and are used for snapshot testing.
-
-- `sample1_simple.json`
-- `sample2_multicolumn.json`
-- `sample3_scanned.json`
-- `sample4_tables.json`
-- `sample5_figures.json`
-- `sample6_mixed.json`
-
-## Scripts
-
-The following scripts are provided for managing test data:
-
-- `download_samples.py`: Downloads the sample PDF files from public sources.
-- `generate_expected_outputs.py`: Processes the sample PDFs and generates expected JSON outputs (requires a functioning document processing pipeline).
-- `generate_synthetic_outputs.py`: Generates synthetic JSON outputs for testing when the actual document processing is not available or when controlled test data is needed.
-
-## Usage
-
-To download the sample PDFs:
-
-```bash
-python download_samples.py
+```
+tests/data/
+├── fixtures/              # Test fixtures (input files and expected outputs)
+│   ├── samples/           # Sample input files organized by type
+│   │   ├── simple/        # Simple document samples
+│   │   ├── complex/       # Complex document samples
+│   │   ├── tables/        # Documents with tables
+│   │   ├── figures/       # Documents with figures
+│   │   ├── multi_column/  # Multi-column document samples
+│   │   ├── rtl/           # Right-to-left language document samples
+│   │   ├── large/         # Large document samples
+│   │   ├── corrupt/       # Corrupt files for testing error handling
+│   │   └── invalid/       # Invalid files (non-PDF) for testing error handling
+│   └── expected/          # Expected outputs for tests
+├── temp/                  # Temporary files created during tests
+└── cache/                 # Cache directories for the application
+    ├── papermage/         # Cache for PaperMage
+    └── papermage_docling/ # Cache for PaperMage-Docling
 ```
 
-To generate synthetic outputs:
+## Access in Tests
 
-```bash
-python generate_synthetic_outputs.py  # Use --force to overwrite existing outputs
+The test fixtures are accessed through fixtures defined in `conftest.py`. To use them in your tests:
+
+```python
+import pytest
+from pathlib import Path
+
+def test_something(sample_pdfs, expected_outputs, temp_dir):
+    # Access sample PDFs
+    simple_pdf = sample_pdfs["simple"]
+    
+    # Access expected outputs
+    expected = expected_outputs["sample1_simple"]
+    
+    # Use temp directory for test outputs
+    output_path = temp_dir / "test_output.json"
+    
+    # Test logic here...
 ```
 
-To generate expected outputs from actual processing (if available):
+## Managing Test Data
+
+### Adding New Sample Files
+
+1. Place new sample files in the appropriate subdirectory under `fixtures/samples/`
+2. Update the relevant fixtures in `conftest.py` if needed
+
+### Adding Expected Outputs
+
+1. Place expected JSON outputs in `fixtures/expected/`
+2. Use meaningful names that match the sample files they correspond to
+
+### Temporary Test Files
+
+- Use the `temp_dir` fixture for any files created during tests
+- These files are automatically cleaned up after tests run
+
+## Setup Script
+
+If the directory structure is not already set up, you can run the setup script:
 
 ```bash
-python generate_expected_outputs.py  # Use --force to overwrite existing outputs
-``` 
+python tests/scripts/setup_test_data.py
+```
+
+This will create the directory structure and migrate existing files to their proper locations.
+
+## Best Practices
+
+1. **Isolation**: Keep test data separate from test code
+2. **Organization**: Use subdirectories to organize different types of test data
+3. **Fixtures**: Access test data through pytest fixtures
+4. **Cleanup**: Always clean up temporary files after tests
+5. **Parametrization**: Use pytest's parametrize to run tests with different data inputs
+6. **Documentation**: Document test data structure and usage 

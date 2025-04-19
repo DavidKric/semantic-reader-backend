@@ -5,11 +5,11 @@ These models represent document entities such as documents, pages, sections,
 paragraphs, and text blocks in the database and for API responses.
 """
 
-from datetime import datetime
-from typing import List, Dict, Any, Optional
-from sqlalchemy import Column, Integer, String, Text, DateTime, Float, Boolean, ForeignKey, JSON
-from sqlalchemy.orm import relationship, Mapped
+from typing import Any, Dict
+
+from sqlalchemy import JSON, Boolean, Column, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
 
@@ -101,6 +101,7 @@ class Section(BaseModel):
     title = Column(String(255), nullable=True)
     level = Column(Integer, default=1)  # Section level/depth (1 = top level)
     order = Column(Integer, nullable=False)  # Order in document
+    section_type = Column(String(32), default="content")  # content, abstract, references, etc.
     
     # Section start and end
     start_page = Column(Integer, nullable=True)

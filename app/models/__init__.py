@@ -6,8 +6,8 @@ and provide an interface for database operations.
 """
 
 # Import models here to make them available from the models package
-from app.models.base import BaseModel, Base
-from app.models.document import Document, Page, Section, Paragraph, Figure, Table
+from app.models.base import Base, BaseModel
+from app.models.document import Document, Figure, Page, Paragraph, Section, Table
 
 __all__ = [
     # Base models

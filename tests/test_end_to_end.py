@@ -5,14 +5,12 @@ This module implements comprehensive tests that validate the compatibility and b
 of PaperMage-Docling against the original PaperMage implementation.
 """
 
-import os
 import json
-import pytest
 import logging
 import tempfile
 from pathlib import Path
-import numpy as np
-from typing import Dict, Any, List, Optional, Union, Tuple
+
+import pytest
 
 # Configure logging
 logging.basicConfig(
@@ -106,7 +104,7 @@ def are_coordinates_equal(coord1, coord2, tolerance=TOLERANCE["coordinate"]):
     if len(coord1) != len(coord2):
         return False
     
-    return all(abs(a - b) <= tolerance for a, b in zip(coord1, coord2))
+    return all(abs(a - b) <= tolerance for a, b in zip(coord1, coord2, strict=False))
 
 def compare_text_content(text1, text2, similarity_threshold=TOLERANCE["text"]):
     """
@@ -137,7 +135,7 @@ def compare_text_content(text1, text2, similarity_threshold=TOLERANCE["text"]):
         return True
     
     # Count matching characters
-    matches = sum(c1 == c2 for c1, c2 in zip(text1, text2))
+    matches = sum(c1 == c2 for c1, c2 in zip(text1, text2, strict=False))
     similarity = matches / longer
     
     return similarity >= similarity_threshold
@@ -427,7 +425,7 @@ def test_token_extraction(papermage_engines, doc_sample):
     
     # Compare token properties
     differences = []
-    for i, (pm_token, docling_token) in enumerate(zip(pm_tokens, docling_tokens)):
+    for i, (pm_token, docling_token) in enumerate(zip(pm_tokens, docling_tokens, strict=False)):
         # Compare text content
         if not compare_text_content(pm_token.get("text", ""), docling_token.get("text", ""),
                                test_config["tolerances"]["text"]):
@@ -543,7 +541,7 @@ def test_document_structure(papermage_engines, doc_sample):
             continue
         
         # Compare individual elements
-        for i, (pm_elem, docling_elem) in enumerate(zip(pm_elements, docling_elements)):
+        for i, (pm_elem, docling_elem) in enumerate(zip(pm_elements, docling_elements, strict=False)):
             # Compare bounding boxes if available
             if "bbox" in pm_elem and "bbox" in docling_elem:
                 if not are_coordinates_equal(pm_elem["bbox"], docling_elem["bbox"],
@@ -668,7 +666,7 @@ def test_core_document_processing_comparison(papermage_engines, test_documents, 
                 f"Token count difference exceeds 5%: {len(pm_tokens)} vs {len(docling_tokens)}"
             
             # Compare token properties up to the smaller count
-            for i, (pm_token, docling_token) in enumerate(zip(pm_tokens, docling_tokens)):
+            for i, (pm_token, docling_token) in enumerate(zip(pm_tokens, docling_tokens, strict=False)):
                 # Compare text content
                 if not compare_text_content(pm_token.get("text", ""), docling_token.get("text", ""),
                                    tolerance_config["text"]):
@@ -700,7 +698,7 @@ def test_core_document_processing_comparison(papermage_engines, test_documents, 
                     structure_differences.append(f"{element.capitalize()} count difference exceeds 10%: {len(pm_elements)} vs {len(docling_elements)}")
                 
                 # Compare properties of common elements
-                for i, (pm_elem, docling_elem) in enumerate(zip(pm_elements, docling_elements)):
+                for i, (pm_elem, docling_elem) in enumerate(zip(pm_elements, docling_elements, strict=False)):
                     # Compare bounding boxes if available
                     if "bbox" in pm_elem and "bbox" in docling_elem:
                         if not are_coordinates_equal(pm_elem["bbox"], docling_elem["bbox"],
@@ -731,7 +729,7 @@ def test_core_document_processing_comparison(papermage_engines, test_documents, 
                 total_chars = max(len(pm_text), len(docling_text))
                 if total_chars > 0:
                     matching_chars = sum(a == b for a, b in zip(pm_text[:min(len(pm_text), len(docling_text))], 
-                                                             docling_text[:min(len(pm_text), len(docling_text))]))
+                                                             docling_text[:min(len(pm_text), len(docling_text))], strict=False))
                     similarity_percentage = (matching_chars / total_chars) * 100
                     logger.warning(f"Text similarity: {similarity_percentage:.2f}%")
             
@@ -839,7 +837,7 @@ def test_complex_layout_analysis(papermage_engines, doc_sample):
         
         # Compare column properties (if both have columns)
         if pm_columns and docling_columns:
-            for i, (pm_col, docling_col) in enumerate(zip(pm_columns[:min(len(pm_columns), len(docling_columns))])):
+            for i, (pm_col, docling_col) in enumerate(zip(pm_columns[:min(len(pm_columns), len(docling_columns))], strict=False)):
                 # Compare column boundaries
                 if "bbox" in pm_col and "bbox" in docling_col:
                     if not are_coordinates_equal(pm_col["bbox"], docling_col["bbox"], 
@@ -862,7 +860,7 @@ def test_complex_layout_analysis(papermage_engines, doc_sample):
             layout_differences.append(f"Table count differs: {len(pm_tables)} vs {len(docling_tables)}")
         
         # Compare table structure for common tables
-        for i, (pm_table, docling_table) in enumerate(zip(pm_tables[:min(len(pm_tables), len(docling_tables))])):
+        for i, (pm_table, docling_table) in enumerate(zip(pm_tables[:min(len(pm_tables), len(docling_tables))], strict=False)):
             # Compare table boundaries
             if "bbox" in pm_table and "bbox" in docling_table:
                 if not are_coordinates_equal(pm_table["bbox"], docling_table["bbox"], 
@@ -908,7 +906,7 @@ def test_complex_layout_analysis(papermage_engines, doc_sample):
             layout_differences.append(f"Figure count differs: {len(pm_figures)} vs {len(docling_figures)}")
         
         # Compare figure properties
-        for i, (pm_fig, docling_fig) in enumerate(zip(pm_figures[:min(len(pm_figures), len(docling_figures))])):
+        for i, (pm_fig, docling_fig) in enumerate(zip(pm_figures[:min(len(pm_figures), len(docling_figures))], strict=False)):
             # Compare figure boundaries
             if "bbox" in pm_fig and "bbox" in docling_fig:
                 if not are_coordinates_equal(pm_fig["bbox"], docling_fig["bbox"], 
@@ -1031,7 +1029,7 @@ def test_rtl_document_processing(papermage_engines, doc_sample):
             total_chars = max(len(pm_text), len(docling_text))
             if total_chars > 0:
                 matching_chars = sum(a == b for a, b in zip(pm_text[:min(len(pm_text), len(docling_text))], 
-                                                         docling_text[:min(len(pm_text), len(docling_text))]))
+                                                         docling_text[:min(len(pm_text), len(docling_text))], strict=False))
                 similarity_percentage = (matching_chars / total_chars) * 100
                 logger.warning(f"RTL text similarity: {similarity_percentage:.2f}%")
         
@@ -1049,7 +1047,7 @@ def test_rtl_document_processing(papermage_engines, doc_sample):
         docling_paragraphs = docling_output.get("paragraphs", [])
         
         dir_mismatches = 0
-        for i, (pm_para, docling_para) in enumerate(zip(pm_paragraphs[:min(len(pm_paragraphs), len(docling_paragraphs))])):
+        for i, (pm_para, docling_para) in enumerate(zip(pm_paragraphs[:min(len(pm_paragraphs), len(docling_paragraphs))], strict=False)):
             pm_dir = pm_para.get("direction", "ltr")
             docling_dir = docling_para.get("direction", "ltr")
             
@@ -1196,9 +1194,10 @@ def test_performance_and_scale(papermage_engines, doc_sample):
     timeout_seconds = int(test_config.get("config", {}).get("timeout_seconds", 300))
     
     # Import necessary modules for performance measurement
-    import time
-    import psutil
     import gc
+    import time
+
+    import psutil
     
     # Process document with both engines and measure performance
     pm_original, pm_docling = papermage_engines
@@ -1324,7 +1323,7 @@ def test_performance_and_scale(papermage_engines, doc_sample):
     
     # Test batch processing capabilities (if supported)
     if hasattr(pm_original, "batch_process") and hasattr(pm_docling, "batch_process"):
-        logger.info(f"Testing batch processing performance")
+        logger.info("Testing batch processing performance")
         
         # Create a small batch from the same document
         batch_size = 3
@@ -1358,7 +1357,7 @@ def test_performance_and_scale(papermage_engines, doc_sample):
     
     # Test concurrent processing (if supported)
     if hasattr(pm_original, "max_concurrent_processes") and hasattr(pm_docling, "max_concurrent_processes"):
-        logger.info(f"Testing concurrent processing capabilities")
+        logger.info("Testing concurrent processing capabilities")
         
         pm_concurrent = getattr(pm_original, "max_concurrent_processes", 1)
         docling_concurrent = getattr(pm_docling, "max_concurrent_processes", 1)

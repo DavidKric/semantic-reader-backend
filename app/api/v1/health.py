@@ -4,15 +4,13 @@ Health check endpoints for the API.
 
 import logging
 import platform
-import sys
-from typing import Dict, Any
+from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.api.deps import get_db
-from app.services.document_processing_service import DocumentProcessingService
+from app.core.config import settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
